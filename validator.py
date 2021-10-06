@@ -11,25 +11,25 @@ def validate(filePath):
 
     def getSpec(gID):
         # check spec dimension
-        if "Pos2D" in gID.name or "Pos3D" in gID.name:
-            specDim = 2
-        elif "dataTimeSeries" in gID.name:
-            if "aux" in gID.name:
-                specDim = 1
-            else:
-                specDim = 2
-        elif "measurementList" in gID.name:
-            if "dataTypeLabel" in gID.name:
-                specDim = 1
-            else:
-                specDim = 0
-        elif "stim" in gID.name and "data" in gID.name:
-            if "dataLabels" in gID.name:
-                specDim = 1
-            else:
-                specDim = 2
-        else:
-            specDim = 1
+        # if "Pos2D" in gID.name or "Pos3D" in gID.name:
+        #     specDim = 2
+        # elif "dataTimeSeries" in gID.name:
+        #     if "aux" in gID.name:
+        #         specDim = 1
+        #     else:
+        #         specDim = 2
+        # elif "measurementList" in gID.name:
+        #     if "dataTypeLabel" in gID.name:
+        #         specDim = 1
+        #     else:
+        #         specDim = 0
+        # elif "stim" in gID.name and "data" in gID.name:
+        #     if "dataLabels" in gID.name:
+        #         specDim = 1
+        #     else:
+        #         specDim = 2
+        # else:
+        #     specDim = 1
 
         # check spec data type
         if "metaDataTags" in gID.name or 'formatVersion' in gID.name:
@@ -43,7 +43,8 @@ def validate(filePath):
         else:
             specType = float
 
-        return specType, specDim
+        #return specType, specDim
+        return specType
 
     def getData(gID):
         # check actual data type and dimension, and print accordingly
@@ -51,35 +52,36 @@ def validate(filePath):
             actualDim = gID.ndim
             if gID.len() == 1:
                 data = gID[0].decode('ascii')
-                msg = Fore.CYAN + '\t\tHDF5-STRING'
+                #msg = Fore.CYAN + '\t\tHDF5-STRING'
             else:
                 data = []
                 for y in gID:
                     data.append(y.decode('ascii'))
                 data = np.array(data)
-                msg = Fore.CYAN + '\t\tHDF5-STRING 1D-Array'
+                #msg = Fore.CYAN + '\t\tHDF5-STRING 1D-Array'
         else:
             data = gID[()]
-            if gID.ndim == 2:
-                msg = Fore.CYAN + '\t\tHDF5-FLOAT 2D-Array'
-                actualDim = gID.ndim
-            elif gID.ndim == 1:  # always a float
-                dimension = gID.shape
-                if dimension[0] == 1:
-                    if 'int' in gID.dtype.name:
-                        msg = Fore.CYAN + '\t\tHDF5-Integer'
-                    else:
-                        msg = Fore.CYAN + '\t\tHDF5-Single Float'
-                    actualDim = 0
-                else:
-                    msg = Fore.CYAN + '\t\tHDF5-FLOAT 1D-Array'
-                    actualDim = gID.ndim
-            elif gID.ndim == 0:
-                msg = Fore.CYAN + '\t\tHDF5-Integer'
-                actualDim = gID.ndim
-            else:
-                return
-        return actualDim, data, msg
+            # if gID.ndim == 2:
+            #     msg = Fore.CYAN + '\t\tHDF5-FLOAT 2D-Array'
+            #     actualDim = gID.ndim
+            # elif gID.ndim == 1:  # always a float
+            #     dimension = gID.shape
+            #     if dimension[0] == 1:
+            #         if 'int' in gID.dtype.name:
+            #             msg = Fore.CYAN + '\t\tHDF5-Integer'
+            #         else:
+            #             msg = Fore.CYAN + '\t\tHDF5-Single Float'
+            #         actualDim = 0
+            #     else:
+            #         msg = Fore.CYAN + '\t\tHDF5-FLOAT 1D-Array'
+            #         actualDim = gID.ndim
+            # elif gID.ndim == 0:
+            #     msg = Fore.CYAN + '\t\tHDF5-Integer'
+            #     actualDim = gID.ndim
+            # else:
+            #     return
+        #return actualDim, data, msg
+        return data
 
     def getAllNames(gID):
         if isinstance(gID, h5py.File):
@@ -94,23 +96,23 @@ def validate(filePath):
         else:
             return 0
 
-    def getOptional():
-        optionalList = ["/nirs\d*/data\w*/measurementList\d*/wavelengthActual",
-                        "/nirs\d*/data\w*/measurementList\d*/wavelengthEmissionActual",
-                        "/nirs\d*/data\d*/measurementList\d*/dataTypeLabel",
-                        "/nirs\d*/data\w*/measurementList\d*/sourcePower",
-                        "/nirs\d*/data\w*/measurementList\d*/detectorGain",
-                        "/nirs\d*/data\w*/measurementList\d*/moduleIndex",
-                        "/nirs\d*/data\w*/measurementList\d*/sourceModuleIndex",
-                        "/nirs\d*/data\w*/measurementList\d*/detectorModuleIndex",
-                        "/nirs\d*/probe/wavelengthsEmission", "/nirs\d*/probe/frequencies",
-                        "/nirs\d*/probe/timeDelays", "/nirs\d*/probe/timeDelayWidths", "/nirs\d*/probe/momentOrders",
-                        "/nirs\d*/probe/correlationTimeDelays", "/nirs\d*/probe/correlationTimeDelayWidths",
-                        "/nirs\d*/probe/sourceLabels", "/nirs\d*/probe/detectorLabels", "/nirs\d*/probe/landmarkPos2D",
-                        "/nirs\d*/probe/landmarkPos3D", "/nirs\d*/probe/landmarkLabels", "/nirs\d*/probe/useLocalIndex",
-                        "/nirs\d*/aux\d*/timeOffset", "/nirs\d*/stim\d*/dataLabels", "/nirs\d*/stim\d*",
-                        "/nirs\d*/aux\d*"]
-        return optionalList
+    # def getOptional():
+    #     optionalList = ["/nirs\d*/data\w*/measurementList\d*/wavelengthActual",
+    #                     "/nirs\d*/data\w*/measurementList\d*/wavelengthEmissionActual",
+    #                     "/nirs\d*/data\d*/measurementList\d*/dataTypeLabel",
+    #                     "/nirs\d*/data\w*/measurementList\d*/sourcePower",
+    #                     "/nirs\d*/data\w*/measurementList\d*/detectorGain",
+    #                     "/nirs\d*/data\w*/measurementList\d*/moduleIndex",
+    #                     "/nirs\d*/data\w*/measurementList\d*/sourceModuleIndex",
+    #                     "/nirs\d*/data\w*/measurementList\d*/detectorModuleIndex",
+    #                     "/nirs\d*/probe/wavelengthsEmission", "/nirs\d*/probe/frequencies",
+    #                     "/nirs\d*/probe/timeDelays", "/nirs\d*/probe/timeDelayWidths", "/nirs\d*/probe/momentOrders",
+    #                     "/nirs\d*/probe/correlationTimeDelays", "/nirs\d*/probe/correlationTimeDelayWidths",
+    #                     "/nirs\d*/probe/sourceLabels", "/nirs\d*/probe/detectorLabels", "/nirs\d*/probe/landmarkPos2D",
+    #                     "/nirs\d*/probe/landmarkPos3D", "/nirs\d*/probe/landmarkLabels", "/nirs\d*/probe/useLocalIndex",
+    #                     "/nirs\d*/aux\d*/timeOffset", "/nirs\d*/stim\d*/dataLabels", "/nirs\d*/stim\d*",
+    #                     "/nirs\d*/aux\d*"]
+    #     return optionalList
 
     def checkSpecialCase(required, requiredIndex, child):
         if 'sourcePos2D' in child or 'detectorPos2D' in child:
@@ -214,8 +216,8 @@ def validate(filePath):
     def CheckDataset(gID):
 
         # check spec datatype and dimension
-        specType, specDim = getSpec(gID)
-        [actualDim, data, msg] = getData(gID)
+        specType = getSpec(gID)
+        data = getData(gID)
         #print(msg)
 
         if gID.dtype == 'int64' or gID.dtype == 'int32':

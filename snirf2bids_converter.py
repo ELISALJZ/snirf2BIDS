@@ -1,37 +1,14 @@
 # To convert a given folder containing snirf files to BIDS folder directory with necessary files
 import numpy as np
-import mne
-import mne_nirs
+import sys
 import os
-import argparse
-from mne_bids import BIDSPath, write_raw_bids, stats
-from mne_nirs.io.snirf import write_raw_snirf
-from mne.utils import logger
-from glob import glob
-import os.path as op
-import subprocess
-from pathlib import Path
-from datetime import datetime
-import json
-import hashlib
-from checksumdir import dirhash
-from pprint import pprint
+import shutil
 import validator
 import Snirf
-import h5py as h5py
-import numpy as np
-import re
+import json
 from colorama import Fore, Style
-import sys
 from tkinter import Tk
 from tkinter.filedialog import askdirectory
-
-# Step 1: import a snirf dataset
-    # a. check for at least 1 subject and number in current/... or current folder
-    # b. check for at least 1 snirf file for session name
-    # c. load the snirf file into a snirf class
-    # d. validate the snirf file so that there is only one nirs
-    # e. if valid, create folder directory based
 
 # Step 2: given a snirf class, extract information to build appropriate file
     # For the whole dataset:
@@ -43,13 +20,27 @@ from tkinter.filedialog import askdirectory
     # For each sub/ses/snirf:
         # a. form file name sub-label_ses-label_
 
-def generateBidsDirectory(folderPath, allSubj):
-    datasetDirectory = folderPath
-    for oneSubj in allSubj:
-        allFile = os.listdir(datasetDirectory + '/' + oneSubj)
-        for oneFile in allFile:
-            print('test')
-    return
+def buildBidsFile(previousFileDirectory):
+    oneSnirf = Snirf.SnirfLoad(previousFileDirectory)
+
+
+def generateBidsDirectory(folderPath, allSubj, allFile):
+    for index, oneSubj in enumerate(allSubj):
+        SubjNum = int(''.join(filter(str.isdigit, oneSubj)))
+        subjFolder = folderPath + '/' + 'sub-' + str(SubjNum)
+        os.mkdir(subjFolder)
+        os.mkdir(subjFolder + '/' + 'nirs')
+        oneSubjFiles = allFile[index]
+        SubjName = 'sub-' + str(SubjNum) + '_'
+        for oneFile in oneSubjFiles:
+            taskName = 'task-' + '(' + oneFile.replace('.snirf','') + ')' + '_'
+            newFileDirectory = subjFolder + '/' + 'nirs' + '/' + SubjName + taskName + 'nirs.snirf'
+            previousFileDirectory = folderPath + '/' + oneSubj + '/' + oneFile
+            shutil.copy(previousFileDirectory, newFileDirectory)
+
+            # generate nirs.json
+            buildBidsFile(previousFileDirectory)
+
 
 def checkSubjectFolder(oneSubjPath):
     if os.path.isdir(oneSubjPath):
@@ -61,15 +52,15 @@ def checkSubjectFolder(oneSubjPath):
                     Decision = validator.validate(oneSubjPath + '/' + oneFile)
                     Decision = True
                     if not Decision:
-                        print(Fore.RED + oneSubjPath + '/' + oneFile + ' is invalid!')
+                        print(Fore.RED + oneSubjPath + '/' + oneFile + ' is invalid! Conversion Terminated!')
                         sys.exit()
                 else:
                     allFile.remove(oneFile)
         else:
-            print(Fore.RED + 'Please have at least one SNIRF file in the dataset folder!')
+            print(Fore.RED + 'Please have at least one SNIRF file in the dataset folder! Conversion Terminated!')
             sys.exit()
     else:
-        print(Fore.RED + 'Invalid Subject Directory!')
+        print(Fore.RED + 'Invalid Subject Directory! Conversion Terminated!')
         sys.exit()
 
     return allFile
@@ -83,25 +74,24 @@ def checkDatasetFolder(folderPath):
             allSubj.remove(bad)
 
         if allSubj.__len__() >= 1:
-            AllFile = []
-            for index, oneSubj in enumerate(allSubj):
+            allFile = []
+            for oneSubj in allSubj:
                 if "sub" in oneSubj or "Sub" in oneSubj:
                     oneSubjallFile = checkSubjectFolder(folderPath + '/' + oneSubj)
-                    AllFile[index].append(oneSubjallFile)
+                    allFile.append(oneSubjallFile)
                 else:
                     allSubj.remove(oneSubj)
         else:
-            print(Fore.RED + 'Please have at least one Subject in the dataset folder!')
+            print(Fore.RED + 'Please have at least one Subject in the dataset folder! Conversion Terminated!')
             sys.exit()
     else:
-        print(Fore.RED + 'Invalid Dataset Directory!')
+        print(Fore.RED + 'Invalid Dataset Directory! Conversion Terminated!')
         sys.exit()
 
     print(Fore.GREEN + 'All Files are valid within ' + folderPath)
-    return allSubj
+    return allSubj, allFile
 
 def importDatafolder():
-
     # Import dataset folder
     if sys.argv.__len__() > 1:
         folderPath = sys.argv[1]
@@ -115,8 +105,8 @@ def importDatafolder():
 
 def Convert():
     folderPath = importDatafolder()
-    allSubj = checkDatasetFolder(folderPath)
-    generateBidsDirectory(folderPath, allSubj)
+    allSubj,allFile = checkDatasetFolder(folderPath)
+    generateBidsDirectory(folderPath, allSubj, allFile)
 
 Convert()
 
