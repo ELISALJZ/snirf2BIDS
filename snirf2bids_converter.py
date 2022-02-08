@@ -552,7 +552,7 @@ class Sidecar(object):
             default[name] = String(None)
 
         self._fields = default
-        _logger.info("Coordsystem class was created.")
+        _logger.info("Sidecar class was created.")
 
     def __setattr__(self, name, val):
         if name.startswith('_'):
@@ -577,12 +577,12 @@ class Sidecar(object):
 
     def __getattr__(self, name):
         if name in self._fields.keys():
-            return self._fields[name].value  # Use the property of the Guy in our managed collection
+            return self._fields[name].value
         else:
-            return super(Sidecar, self).__getattribute__(name)  # Fall back to the original __setattr__ behavior
+            return super(Sidecar, self).__getattribute__(name)
 
     def __delattr__(self, name):
-        default = _getdefault('BIDS_fNIRS_subject_folder.json', '_coordsystem.json')
+        default = _getdefault('BIDS_fNIRS_subject_folder.json', '_nirs.json')
         if name not in default.keys():
             del self._fields[name]
             _logger.info("field" + name + "was deleted.")
@@ -592,8 +592,15 @@ class Sidecar(object):
     def load_from_SNIRF(self, fpath):
         snirf = Snirf(fpath)
         self._Source_snirf = snirf
+        self._fields['SamplingFrequency'].value = np.mean(np.diff(np.array(snirf.nirs[0].data[0].time)))
+        self._fields['NIRSChannelCount'].value = snirf.nirs[0].data[0].measurementList.__len__()
 
-        # fill in the blank
+        if snirf.nirs[0].probe.detectorPos2D is None and snirf.nirs[0].probe.sourcePos2D is None:
+            self._fields['NIRSSourceOptodeCount'].value = snirf.nirs[0].probe.sourcePos3D.__len__()
+            self._fields['NIRSDetectorOptodeCount'].value = snirf.nirs[0].probe.detectorPos3D.__len__()
+        elif snirf.nirs[0].probe.detectorPos3D is None and snirf.nirs[0].probe.sourcePos3D is None:
+            self._fields['NIRSSourceOptodeCount'].value = snirf.nirs[0].probe.sourcePos2D.__len__()
+            self._fields['NIRSDetectorOptodeCount'].value = snirf.nirs[0].probe.detectorPos2D.__len__()
 
         _logger.info("Sidecar class is rewrite gievn snirf file at " + fpath)
 
@@ -643,7 +650,7 @@ class Sidecar(object):
             raise TypeError("Invalid field!")
 
     def default_fields(self):
-        return _getdefault('BIDS_fNIRS_subject_folder.json', '_nirs.json')
+        return _getdefault('BIDS_fNIRS_subject_folder.json', '_nirs.json').keys()
 
 
 class BIDS(object):
@@ -653,11 +660,11 @@ class BIDS(object):
     def __init__(self):
         _logger.info("an BIDS instance was created.")
 
-        self.coordsystem = Coordsystem()
-        self.participant = Participant()
-        self.optode = Optode()
-        self.channel = Channel()
-        self.event = Event()
+        # self.coordsystem = Coordsystem()
+        # self.participant = Participant()
+        # self.optode = Optode()
+        # self.channel = Channel()
+        # self.event = Event()
         self.sidecar = Sidecar()
 
     def validate(self):
@@ -683,19 +690,20 @@ def Convert():
 
     # build a BIDS dataset from Scratch
     bids = BIDS()
-    bids.coordsystem.change_type('RequirementLevel')
+    bids.sidecar.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
+    #bids.coordsystem.change_type('RequirementLevel')
 
     # print(bids.coordsystem.RequirementLevel)
     # bids.coordsystem.test = 'test'
     #
     # bids.coordsystem.default_fields()
     #
-    # subj1 = {
-    #     'sub-': '01',
-    #     'ses-': None,
-    #     'task-': None,
-    #     'run-': None,
-    # }
+    subj1 = {
+        'sub-': '01',
+        'ses-': None,
+        'task-': None,
+        'run-': None,
+    }
     #
     # bids.coordsystem.save_to_dir(info=subj1, fpath='/Users/andyzjc/Downloads/SeniorProject/snirf2BIDS')
     #
