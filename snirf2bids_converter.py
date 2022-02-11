@@ -72,24 +72,26 @@ class Number(Field):
             return True
 
 
-class Coordsystem(object):
+class JSON:
+    """ JSON Class
 
-    logger: logging.Logger = _logger
+    Class object that encapsulates subclasses that create and contain BIDS JSON files
+
+    """
 
     def __init__(self):
-        default_list = _getdefault('BIDS_fNIRS_subject_folder.json', '_coordsystem.json')
-        default = {}
-        default['path2origin'] = String(None)
+        default_list = self.default_fields()
+        default = {'path2origin': String(None)}
         for name in default_list:
             # assume they are all string now
             default[name] = String(None)
 
         self._fields = default
-        _logger.info("Coordsystem class was created.")
+        self.Source_SNIRF = None
 
     def __setattr__(self, name, val):
         if name.startswith('_'):
-            super(Coordsystem, self).__setattr__(name, val)
+            super().__setattr__(name, val)
 
         elif name in self._fields.keys():
             if self._fields[name].validate(val):
@@ -108,25 +110,13 @@ class Coordsystem(object):
             else:
                 raise ValueError('invalid input')
 
-    def __getattr__(self, name):
-        if name in self._fields.keys():
-            return self._fields[name].value  # Use the property of the Guy in our managed collection
-        else:
-            return super(Coordsystem, self).__getattribute__(name)  # Fall back to the original __setattr__ behavior
-
     def __delattr__(self, name):
-        default = _getdefault('BIDS_fNIRS_subject_folder.json', '_coordsystem.json')
+        default = self.default_fields()
         if name not in default.keys():
             del self._fields[name]
             _logger.info("field" + name + "was deleted.")
         else:
             raise TypeError("Cannot remove a default field!")
-
-    def load_from_SNIRF(self, fpath):
-        snirf = Snirf(fpath)
-        self._Source_snirf = snirf
-        self._fields['NIRSCoordinateUnits'].value = snirf.nirs[0].metaDataTags.LengthUnit
-        _logger.info("Coordsystem class is rewrite gievn snirf file at " + fpath)
 
     def load_from_json(self, fpath):
         with open(fpath) as file:
@@ -142,14 +132,14 @@ class Coordsystem(object):
                 raise TypeError("Incorrect Datatype")
 
         self._fields = new
-        _logger.info("Coordsystem class is rewrite gievn json file at " + fpath)
+        _logger.info(self.get_class_name() + " class is rewritten given json file at " + fpath)
 
     def save_to_dir(self, info, fpath):
         filename = ""
         for name in info:
             if info[name] is not None:
                 filename = filename + name + info[name] + '_'
-        filename = filename + 'coordsystem.json'
+        filename = filename + self.get_class_name().lower() + '.json'
         filedir = fpath + '/' + filename
 
         fields = {}
@@ -159,7 +149,7 @@ class Coordsystem(object):
             json.dump(fields, file, indent=4)
         self._fields['path2origin'].value = filedir
 
-        _logger.info("Coordsystem class is saved as " + filename + "at " + fpath)
+        _logger.info(self.get_class_name() + " class is saved as " + filename + "at " + fpath)
 
     def change_type(self, name):
         if self._fields[name]._type is str:
@@ -174,7 +164,25 @@ class Coordsystem(object):
             raise TypeError("Invalid field!")
 
     def default_fields(self):
-        return _getdefault('BIDS_fNIRS_subject_folder.json', '_coordsystem.json')
+        if "sidecar" in self.get_class_name().lower():
+            default_list = _getdefault('BIDS_fNIRS_subject_folder.json', "_nirs.json")
+        else:
+            default_list = _getdefault('BIDS_fNIRS_subject_folder.json', "_" + self.get_class_name().lower() + ".json")
+
+        return default_list
+
+    def get_class_name(self):
+        return self.__class__.__name__
+
+
+class Coordsystem(JSON):
+
+    logger: logging.Logger = _logger
+
+    def load_from_SNIRF(self, fpath):
+        self.Source_SNIRF = Snirf(fpath)
+        self._fields['NIRSCoordinateUnits'].value = self.Source_SNIRF.nirs[0].metaDataTags.LengthUnit
+        _logger.info("Coordsystem class is rewrite given snirf file at " + fpath)
 
 
 class Participant(object):
@@ -433,7 +441,7 @@ class Channel(object):
         # return _getdefault('BIDS_fNIRS_subject_folder.json', '_channels.tsv')
 
 
-class Event(object):
+class Events(object):
 
     logger: logging.Logger = _logger
 
@@ -450,7 +458,7 @@ class Event(object):
 
     def __setattr__(self, name, val):
         if name.startswith('_'):
-            super(Event, self).__setattr__(name, val)
+            super(Events, self).__setattr__(name, val)
 
         elif name in self._fields.keys():
             if self._fields[name].validate(val):
@@ -473,7 +481,7 @@ class Event(object):
         if name in self._fields.keys():
             return self._fields[name].value  # Use the property of the Guy in our managed collection
         else:
-            return super(Event, self).__getattribute__(name)  # Fall back to the original __setattr__ behavior
+            return super(Events, self).__getattribute__(name)  # Fall back to the original __setattr__ behavior
 
     def __delattr__(self, name):
         default = _getdefault('BIDS_fNIRS_subject_folder.json', '_events.json')
@@ -511,7 +519,7 @@ class Event(object):
         for name in info:
             if info[name] is not None:
                 filename = filename + name + info[name] + '_'
-        filename = filename + 'event.json'
+        filename = filename + 'events.json'
         filedir = fpath + '/' + filename
 
         fields = {}
@@ -539,118 +547,25 @@ class Event(object):
         return _getdefault('BIDS_fNIRS_subject_folder.json', '_events.json')
 
 
-class Sidecar(object):
+class Sidecar(JSON):
 
     logger: logging.Logger = _logger
 
-    def __init__(self):
-        default_list = _getdefault('BIDS_fNIRS_subject_folder.json', '_nirs.json')
-        default = {}
-        default['path2origin'] = String(None)
-        for name in default_list:
-            # assume they are all string now
-            default[name] = String(None)
-
-        self._fields = default
-        _logger.info("Sidecar class was created.")
-
-    def __setattr__(self, name, val):
-        if name.startswith('_'):
-            super(Sidecar, self).__setattr__(name, val)
-
-        elif name in self._fields.keys():
-            if self._fields[name].validate(val):
-                self._fields[name].value = val
-                _logger.info("Field " + name + " had been re-written.")
-            else:
-                raise ValueError("Incorrect data type")
-
-        elif name not in self._fields.keys():
-            if String.validate(val):  # Use our static method to validate a guy of this type before creating it
-                self._fields[name] = String(val)
-                _logger.info("Customized String Field " + name + " had been created.")
-            elif Number.validate(val):
-                self._fields[name] = Number(val)
-                _logger.info("Customized Number Field " + name + " had been created.")
-            else:
-                raise ValueError('invalid input')
-
-    def __getattr__(self, name):
-        if name in self._fields.keys():
-            return self._fields[name].value
-        else:
-            return super(Sidecar, self).__getattribute__(name)
-
-    def __delattr__(self, name):
-        default = _getdefault('BIDS_fNIRS_subject_folder.json', '_nirs.json')
-        if name not in default.keys():
-            del self._fields[name]
-            _logger.info("field" + name + "was deleted.")
-        else:
-            raise TypeError("Cannot remove a default field!")
-
     def load_from_SNIRF(self, fpath):
-        snirf = Snirf(fpath)
-        self._Source_snirf = snirf
-        self._fields['SamplingFrequency'].value = np.mean(np.diff(np.array(snirf.nirs[0].data[0].time)))
-        self._fields['NIRSChannelCount'].value = snirf.nirs[0].data[0].measurementList.__len__()
+        self.Source_SNIRF = Snirf(fpath)
+        self._fields['SamplingFrequency'].value = np.mean(np.diff(np.array(self.Source_SNIRF.nirs[0].data[0].time)))
+        self._fields['NIRSChannelCount'].value = self.Source_SNIRF.nirs[0].data[0].measurementList.__len__()
 
-        if snirf.nirs[0].probe.detectorPos2D is None and snirf.nirs[0].probe.sourcePos2D is None:
-            self._fields['NIRSSourceOptodeCount'].value = snirf.nirs[0].probe.sourcePos3D.__len__()
-            self._fields['NIRSDetectorOptodeCount'].value = snirf.nirs[0].probe.detectorPos3D.__len__()
-        elif snirf.nirs[0].probe.detectorPos3D is None and snirf.nirs[0].probe.sourcePos3D is None:
-            self._fields['NIRSSourceOptodeCount'].value = snirf.nirs[0].probe.sourcePos2D.__len__()
-            self._fields['NIRSDetectorOptodeCount'].value = snirf.nirs[0].probe.detectorPos2D.__len__()
+        if self.Source_SNIRF.nirs[0].probe.detectorPos2D is None \
+                and self.Source_SNIRF.nirs[0].probe.sourcePos2D is None:
+            self._fields['NIRSSourceOptodeCount'].value = self.Source_SNIRF.nirs[0].probe.sourcePos3D.__len__()
+            self._fields['NIRSDetectorOptodeCount'].value = self.Source_SNIRF.nirs[0].probe.detectorPos3D.__len__()
+        elif self.Source_SNIRF.nirs[0].probe.detectorPos3D is None \
+                and self.Source_SNIRF.nirs[0].probe.sourcePos3D is None:
+            self._fields['NIRSSourceOptodeCount'].value = self.Source_SNIRF.nirs[0].probe.sourcePos2D.__len__()
+            self._fields['NIRSDetectorOptodeCount'].value = self.Source_SNIRF.nirs[0].probe.detectorPos2D.__len__()
 
         _logger.info("Sidecar class is rewrite gievn snirf file at " + fpath)
-
-    def load_from_json(self, fpath):
-        with open(fpath) as file:
-            fields = json.load(file)
-        new = {}
-        for name in fields:
-            # assume they are all string now
-            if String.validate(fields[name]):
-                new[name] = String(fields[name])
-            elif Number.validate(fields[name]):
-                new[name] = Number(fields[name])
-            else:
-                raise TypeError("Incorrect Datatype")
-
-        self._fields = new
-        _logger.info("Sidecar class is rewrite given json file at " + fpath)
-
-    def save_to_dir(self, info, fpath):
-        filename = ""
-        for name in info:
-            if info[name] is not None:
-                filename = filename + name + info[name] + '_'
-        filename = filename + 'nirs.json'
-        filedir = fpath + '/' + filename
-
-        fields = {}
-        for name in self._fields.keys():
-            fields[name] = self._fields[name].value
-        with open(filedir, 'w') as file:
-            json.dump(fields, file, indent=4)
-        self._fields['path2origin'].value = filedir
-
-        _logger.info("Sidecar class is saved as " + filename + "at " + fpath)
-
-    def change_type(self, name):
-        if self._fields[name]._type is str:
-            self._fields[name] = Number(None)
-            _logger.info("Field " + name + "had been re-written to number field due to type change.")
-
-        elif self._fields[name]._type is int:
-            self._fields[name] = String(None)
-            _logger.info("Field " + name + "had been re-written to string field due to type change.")
-
-        else:
-            raise TypeError("Invalid field!")
-
-    def default_fields(self):
-        return _getdefault('BIDS_fNIRS_subject_folder.json', '_nirs.json').keys()
 
 
 class BIDS(object):
@@ -660,11 +575,11 @@ class BIDS(object):
     def __init__(self):
         _logger.info("an BIDS instance was created.")
 
-        # self.coordsystem = Coordsystem()
+        self.coordsystem = Coordsystem()
         # self.participant = Participant()
         # self.optode = Optode()
         # self.channel = Channel()
-        # self.event = Event()
+        # self.events = Events()
         self.sidecar = Sidecar()
 
     def validate(self):
@@ -690,7 +605,7 @@ def Convert():
 
     # build a BIDS dataset from Scratch
     bids = BIDS()
-    bids.sidecar.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
+    # bids.sidecar.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
     #bids.coordsystem.change_type('RequirementLevel')
 
     # print(bids.coordsystem.RequirementLevel)
