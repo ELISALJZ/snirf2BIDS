@@ -72,10 +72,10 @@ class Number(Field):
             return True
 
 
-class JSON:
-    """ JSON Class
+class Metadata:
+    """ Metadata File Class
 
-    Class object that encapsulates subclasses that create and contain BIDS JSON files
+    Class object that encapsulates the JSON and TSV Metadata File Class
 
     """
 
@@ -114,7 +114,7 @@ class JSON:
         if name in self._fields.keys():
             return self._fields[name].value  # Use the property of the Guy in our managed collection
         else:
-            return super(Coordsystem, self).__getattribute__(name)
+            return super().__getattribute__(name)
 
     def __delattr__(self, name):
         default = self.default_fields()
@@ -123,6 +123,38 @@ class JSON:
             _logger.info("field" + name + "was deleted.")
         else:
             raise TypeError("Cannot remove a default field!")
+
+    def change_type(self, name):
+        if self._fields[name]._type is str:
+            self._fields[name] = Number(None)
+            _logger.info("Field " + name + "had been re-written to number field due to type change.")
+
+        elif self._fields[name]._type is int:
+            self._fields[name] = String(None)
+            _logger.info("Field " + name + "had been re-written to string field due to type change.")
+
+        else:
+            raise TypeError("Invalid field!")
+
+    def default_fields(self):
+        if "sidecar" in self.get_class_name().lower():
+            default_list = _getdefault('BIDS_fNIRS_subject_folder.json', "_nirs.json")
+        elif isinstance(self, JSON):
+            default_list = _getdefault('BIDS_fNIRS_subject_folder.json', "_" + self.get_class_name().lower() + ".json")
+        elif isinstance(self, TSV):
+            default_list = _getdefault('BIDS_fNIRS_subject_folder.json', "_" + self.get_class_name().lower() + ".tsv")
+        return default_list
+
+    def get_class_name(self):
+        return self.__class__.__name__
+
+
+class JSON(Metadata):
+    """ JSON Class
+
+    Class object that encapsulates subclasses that create and contain BIDS JSON files
+
+    """
 
     def load_from_json(self, fpath):
         with open(fpath) as file:
@@ -157,28 +189,15 @@ class JSON:
 
         _logger.info(self.get_class_name() + " class is saved as " + filename + "at " + fpath)
 
-    def change_type(self, name):
-        if self._fields[name]._type is str:
-            self._fields[name] = Number(None)
-            _logger.info("Field " + name + "had been re-written to number field due to type change.")
 
-        elif self._fields[name]._type is int:
-            self._fields[name] = String(None)
-            _logger.info("Field " + name + "had been re-written to string field due to type change.")
+class TSV(Metadata):
+    """ TSV Class
 
-        else:
-            raise TypeError("Invalid field!")
+        Class object that encapsulates subclasses that create and contain BIDS TSV files
 
-    def default_fields(self):
-        if "sidecar" in self.get_class_name().lower():
-            default_list = _getdefault('BIDS_fNIRS_subject_folder.json', "_nirs.json")
-        else:
-            default_list = _getdefault('BIDS_fNIRS_subject_folder.json', "_" + self.get_class_name().lower() + ".json")
+    """
 
-        return default_list
-
-    def get_class_name(self):
-        return self.__class__.__name__
+    # Some functions here lol
 
 
 class Coordsystem(JSON):
@@ -188,139 +207,93 @@ class Coordsystem(JSON):
     def load_from_SNIRF(self, fpath):
         self.Source_SNIRF = Snirf(fpath)
         self._fields['NIRSCoordinateUnits'].value = self.Source_SNIRF.nirs[0].metaDataTags.LengthUnit
-        _logger.info("Coordsystem class is rewrite given snirf file at " + fpath)
+        _logger.info("Coordsystem class is rewritten given snirf file at " + fpath)
 
 
-class Participant(object):
-#
-#     logger: logging.Logger = _logger
-#
-#     def __init__(self):
-#         pass
-#         # fill in the blank
-#         #_logger.info("Participant class was created.")
-#
-#     def __setattr__(self, name, val):
-#         if name.startswith('_'):
-#             super(Participant, self).__setattr__(name, val)
-#
-#         elif name in self._fields.keys():
-#             if self._fields[name].validate(val):
-#                 self._fields[name].value = val
-#                 _logger.info("Field " + name + " had been re-written.")
-#             else:
-#                 raise ValueError("Incorrect data type")
-#
-#         elif name not in self._fields.keys():
-#             if String.validate(val):  # Use our static method to validate a guy of this type before creating it
-#                 self._fields[name] = String(val)
-#                 _logger.info("Customized String Field " + name + " had been created.")
-#             elif Number.validate(val):
-#                 self._fields[name] = Number(val)
-#                 _logger.info("Customized Number Field " + name + " had been created.")
-#             else:
-#                 raise ValueError('invalid input')
-#
-#     def __getattr__(self, name):
-#         if name in self._fields.keys():
-#             return self._fields[name].value  # Use the property of the Guy in our managed collection
-#         else:
-#             return super(Participant, self).__getattribute__(name)  # Fall back to the original __setattr__ behavior
-#
-#     def __delattr__(self, name):
-#         default = _getdefault('BIDS_fNIRS_subject_folder.json', 'participants.tsv')
-#         if name not in default.keys():
-#             del self._fields[name]
-#             _logger.info("field" + name + "was deleted.")
-#         else:
-#             raise TypeError("Cannot remove a default field!")
-#
-#     def load_from_file(self, fpath):
-#         pass
-#         # fill in the blank"
-#
-#         _logger.info("Participant class is rewrite gievn tsv file at " + fpath)
-#
-#     def save_to_json(self, info, fpath):
-#         pass
-#         # fill in the blank
-#
-#         #_logger.info("Participant class is saved as " + filename + "at " + fpath)
-#
-#     def save_to_TSV(self, info, fpath):
-#         pass
-#         # fill in the blank
-#
-#         # _logger.info("Participant class is saved as " + filename + "at " + fpath)
-#
-#     def change_type(self, name):
-#         if self._fields[name]._type is str:
-#             self._fields[name] = Number(None)
-#             _logger.info("Field " + name + "had been re-written to number field due to type change.")
-#
-#         elif self._fields[name]._type is int:
-#             self._fields[name] = String(None)
-#             _logger.info("Field " + name + "had been re-written to string field due to type change.")
-#
-#         else:
-#             raise TypeError("Invalid field!")
-#
-#     def default_fields(self):
-#         pass
-#         # fill in the blank
-#
-#         # return _getdefault('BIDS_fNIRS_subject_folder.json', 'participants.tsv')
-
-
-class Optode(object):
+class Participant(TSV):
 
     logger: logging.Logger = _logger
+    #
+    # def __init__(self):
+    #     pass
+    #     # fill in the blank
+    #     #_logger.info("Participant class was created.")
+    #
+    # def __setattr__(self, name, val):
+    #     if name.startswith('_'):
+    #         super(Participant, self).__setattr__(name, val)
+    #
+    #     elif name in self._fields.keys():
+    #         if self._fields[name].validate(val):
+    #             self._fields[name].value = val
+    #             _logger.info("Field " + name + " had been re-written.")
+    #         else:
+    #             raise ValueError("Incorrect data type")
+    #
+    #     elif name not in self._fields.keys():
+    #         if String.validate(val):  # Use our static method to validate a guy of this type before creating it
+    #             self._fields[name] = String(val)
+    #             _logger.info("Customized String Field " + name + " had been created.")
+    #         elif Number.validate(val):
+    #             self._fields[name] = Number(val)
+    #             _logger.info("Customized Number Field " + name + " had been created.")
+    #         else:
+    #             raise ValueError('invalid input')
+    #
+    # def __getattr__(self, name):
+    #     if name in self._fields.keys():
+    #         return self._fields[name].value  # Use the property of the Guy in our managed collection
+    #     else:
+    #         return super(Participant, self).__getattribute__(name)  # Fall back to the original __setattr__ behavior
+    #
+    # def __delattr__(self, name):
+    #     default = _getdefault('BIDS_fNIRS_subject_folder.json', 'participants.tsv')
+    #     if name not in default.keys():
+    #         del self._fields[name]
+    #         _logger.info("field" + name + "was deleted.")
+    #     else:
+    #         raise TypeError("Cannot remove a default field!")
+    #
+    # def load_from_file(self, fpath):
+    #     pass
+    #     # fill in the blank"
+    #
+    #     _logger.info("Participant class is rewrite given tsv file at " + fpath)
+    #
+    # def save_to_json(self, info, fpath):
+    #     pass
+    #     # fill in the blank
+    #
+    #     #_logger.info("Participant class is saved as " + filename + "at " + fpath)
+    #
+    # def save_to_TSV(self, info, fpath):
+    #     pass
+    #     # fill in the blank
+    #
+    #     # _logger.info("Participant class is saved as " + filename + "at " + fpath)
+    #
+    # def change_type(self, name):
+    #     if self._fields[name]._type is str:
+    #         self._fields[name] = Number(None)
+    #         _logger.info("Field " + name + "had been re-written to number field due to type change.")
+    #
+    #     elif self._fields[name]._type is int:
+    #         self._fields[name] = String(None)
+    #         _logger.info("Field " + name + "had been re-written to string field due to type change.")
+    #
+    #     else:
+    #         raise TypeError("Invalid field!")
+    #
+    # def default_fields(self):
+    #     pass
+    #     # fill in the blank
+    #
+    #     # return _getdefault('BIDS_fNIRS_subject_folder.json', 'participants.tsv')
 
-    def __init__(self):
-        default_list = _getdefault('BIDS_fNIRS_subject_folder.json', '_optodes.tsv')
-        default = {}
-        default['path2origin'] = String(None)
-        for name in default_list:
-            # assume they are all string now
-            default[name] = String(None)
 
-        self._fields = default
-        _logger.info("Coordsystem class was created.")
+class Optodes(TSV):
 
-    def __setattr__(self, name, val):
-        if name.startswith('_'):
-            super(Optode, self).__setattr__(name, val)
-
-        elif name in self._fields.keys():
-            if self._fields[name].validate(val):
-                self._fields[name].value = val
-                _logger.info("Field " + name + " had been re-written.")
-            else:
-                raise ValueError("Incorrect data type")
-
-        elif name not in self._fields.keys():
-            if String.validate(val):  # Use our static method to validate a guy of this type before creating it
-                self._fields[name] = String(val)
-                _logger.info("Customized String Field " + name + " had been created.")
-            elif Number.validate(val):
-                self._fields[name] = Number(val)
-                _logger.info("Customized Number Field " + name + " had been created.")
-            else:
-                raise ValueError('invalid input')
-
-    def __getattr__(self, name):
-        if name in self._fields.keys():
-            return self._fields[name].value  # Use the property of the Guy in our managed collection
-        else:
-            return super(Optode, self).__getattribute__(name)  # Fall back to the original __setattr__ behavior
-
-    def __delattr__(self, name):
-        default = _getdefault('BIDS_fNIRS_subject_folder.json', '_optodes.tsv')
-        if name not in default.keys():
-            del self._fields[name]
-            _logger.info("field" + name + "was deleted.")
-        else:
-            raise TypeError("Cannot remove a default field!")
+    logger: logging.Logger = _logger
 
     def load_from_SNIRF(self, fpath):
         snirf = Snirf(fpath)
@@ -341,94 +314,30 @@ class Optode(object):
 
         # _logger.info("Optode class is saved as " + filename + "at " + fpath)
 
-    def change_type(self, name):
-        if self._fields[name]._type is str:
-            self._fields[name] = Number(None)
-            _logger.info("Field " + name + "had been re-written to number field due to type change.")
 
-        elif self._fields[name]._type is int:
-            self._fields[name] = String(None)
-            _logger.info("Field " + name + "had been re-written to string field due to type change.")
-
-        else:
-            raise TypeError("Invalid field!")
-
-    def default_fields(self):
-        pass
-        # fill in the blank
-
-        # return _getdefault('BIDS_fNIRS_subject_folder.json', '_optodes.tsv)
-
-
-class Channel(object):
+class Channels(TSV):
 
     logger: logging.Logger = _logger
 
-    def __init__(self):
-        default_list = _getdefault('BIDS_fNIRS_subject_folder.json', '_channels.tsv')
-        default = {}
-        default['path2origin'] = String(None)
-        for name in default_list:
-            # assume they are all string now
-            default[name] = String(None)
-
-        self._fields = default
-        _logger.info("Channel class was created.")
-
-    def __setattr__(self, name, val):
-        if name.startswith('_'):
-            super(Channel, self).__setattr__(name, val)
-
-        elif name in self._fields.keys():
-            if self._fields[name].validate(val):
-                self._fields[name].value = val
-                _logger.info("Field " + name + " had been re-written.")
-            else:
-                raise ValueError("Incorrect data type")
-
-        elif name not in self._fields.keys():
-            if String.validate(val):  # Use our static method to validate a guy of this type before creating it
-                self._fields[name] = String(val)
-                _logger.info("Customized String Field " + name + " had been created.")
-            elif Number.validate(val):
-                self._fields[name] = Number(val)
-                _logger.info("Customized Number Field " + name + " had been created.")
-            else:
-                raise ValueError('invalid input')
-
-    def __getattr__(self, name):
-        if name in self._fields.keys():
-            return self._fields[name].value  # Use the property of the Guy in our managed collection
-        else:
-            return super(Channel, self).__getattribute__(name)  # Fall back to the original __setattr__ behavior
-
-    def __delattr__(self, name):
-        default = _getdefault('BIDS_fNIRS_subject_folder.json', '_channels.tsv')
-        if name not in default.keys():
-            del self._fields[name]
-            _logger.info("field" + name + "was deleted.")
-        else:
-            raise TypeError("Cannot remove a default field!")
-
     def load_from_SNIRF(self, fpath):
-        snirf = Snirf(fpath)
-        self._Source_snirf = snirf
+        self.Source_SNIRF = Snirf(fpath)
 
-        source = snirf.nirs[0].probe.sourceLabels
-        detector = snirf.nirs[0].probe.detectorLabels
-        wavelength = snirf.nirs[0].probe.wavelengths
+        source = self.Source_SNIRF.nirs[0].probe.sourceLabels
+        detector = self.Source_SNIRF.nirs[0].probe.detectorLabels
+        wavelength = self.Source_SNIRF.nirs[0].probe.wavelengths
 
         name = []
-        label = np.zeros(snirf.nirs[0].data[0].measurementList.__len__())
-        wavelength_nominal = np.zeros(snirf.nirs[0].data[0].measurementList.__len__())
+        label = np.zeros(self.Source_SNIRF.nirs[0].data[0].measurementList.__len__())
+        wavelength_nominal = np.zeros(self.Source_SNIRF.nirs[0].data[0].measurementList.__len__())
 
-        for i in range(snirf.nirs[0].data[0].measurementList.__len__()):
-            source_index = snirf.nirs[0].data[0].measurementList[i].sourceIndex
-            detector_index = snirf.nirs[0].data[0].measurementList[i].detectorIndex
-            wavelength_index = snirf.nirs[0].data[0].measurementList[i].wavelengthIndex
+        for i in range(self.Source_SNIRF.nirs[0].data[0].measurementList.__len__()):
+            source_index = self.Source_SNIRF.nirs[0].data[0].measurementList[i].sourceIndex
+            detector_index = self.Source_SNIRF.nirs[0].data[0].measurementList[i].detectorIndex
+            wavelength_index = self.Source_SNIRF.nirs[0].data[0].measurementList[i].wavelengthIndex
 
-            name.append(source[source_index-1] + '-' + detector[detector_index-1] + '-' + str(wavelength[wavelength_index-1]))
-            label[i] = snirf.nirs[0].data[0].measurementList[i].dataTypeLabel
+            name.append(source[source_index-1] + '-' + detector[detector_index-1] + '-' +
+                        str(wavelength[wavelength_index-1]))
+            label[i] = self.Source_SNIRF.nirs[0].data[0].measurementList[i].dataTypeLabel
             wavelength_nominal[i] = wavelength[wavelength_index-1]
 
         self._fields['name'].value = name
@@ -436,9 +345,9 @@ class Channel(object):
         self._fields['source'].value = source
         self._fields['detector'].value = detector
         self._fields['wavelength_nominal'].value = wavelength_nominal
-        self._fields['sampling_frequency'].value = np.mean(np.diff(np.array(snirf.nirs[0].data[0].time)))
+        self._fields['sampling_frequency'].value = np.mean(np.diff(np.array(self.Source_SNIRF.nirs[0].data[0].time)))
 
-        _logger.info("Channel class is rewrite gievn snirf file at " + fpath)
+        _logger.info("Channel class is rewrite given snirf file at " + fpath)
 
     def load_from_tsv(self, fpath):
         pass
@@ -451,71 +360,10 @@ class Channel(object):
 
         # _logger.info("Optode class is saved as " + filename + "at " + fpath)
 
-    def change_type(self, name):
-        if self._fields[name]._type is str:
-            self._fields[name] = Number(None)
-            _logger.info("Field " + name + "had been re-written to number field due to type change.")
 
-        elif self._fields[name]._type is int:
-            self._fields[name] = String(None)
-            _logger.info("Field " + name + "had been re-written to string field due to type change.")
-
-        else:
-            raise TypeError("Invalid field!")
-
-    def default_fields(self):
-        return _getdefault('BIDS_fNIRS_subject_folder.json', '_channels.tsv').keys()
-
-
-class Events(object):
+class Events(TSV):
 
     logger: logging.Logger = _logger
-
-    def __init__(self):
-        default_list = _getdefault('BIDS_fNIRS_subject_folder.json', '_events.json')
-        default = {}
-        default['path2origin'] = String(None)
-        for name in default_list:
-            # assume they are all string now
-            default[name] = String(None)
-
-        self._fields = default
-        _logger.info("Event class was created.")
-
-    def __setattr__(self, name, val):
-        if name.startswith('_'):
-            super(Events, self).__setattr__(name, val)
-
-        elif name in self._fields.keys():
-            if self._fields[name].validate(val):
-                self._fields[name].value = val
-                _logger.info("Field " + name + " had been re-written.")
-            else:
-                raise ValueError("Incorrect data type")
-
-        elif name not in self._fields.keys():
-            if String.validate(val):  # Use our static method to validate a guy of this type before creating it
-                self._fields[name] = String(val)
-                _logger.info("Customized String Field " + name + " had been created.")
-            elif Number.validate(val):
-                self._fields[name] = Number(val)
-                _logger.info("Customized Number Field " + name + " had been created.")
-            else:
-                raise ValueError('invalid input')
-
-    def __getattr__(self, name):
-        if name in self._fields.keys():
-            return self._fields[name].value  # Use the property of the Guy in our managed collection
-        else:
-            return super(Events, self).__getattribute__(name)  # Fall back to the original __setattr__ behavior
-
-    def __delattr__(self, name):
-        default = _getdefault('BIDS_fNIRS_subject_folder.json', '_events.json')
-        if name not in default.keys():
-            del self._fields[name]
-            _logger.info("field" + name + "was deleted.")
-        else:
-            raise TypeError("Cannot remove a default field!")
 
     def load_from_SNIRF(self, fpath):
         snirf = Snirf(fpath)
@@ -557,21 +405,6 @@ class Events(object):
 
         _logger.info("Event class is saved as " + filename + "at " + fpath)
 
-    def change_type(self, name):
-        if self._fields[name]._type is str:
-            self._fields[name] = Number(None)
-            _logger.info("Field " + name + "had been re-written to number field due to type change.")
-
-        elif self._fields[name]._type is int:
-            self._fields[name] = String(None)
-            _logger.info("Field " + name + "had been re-written to string field due to type change.")
-
-        else:
-            raise TypeError("Invalid field!")
-
-    def default_fields(self):
-        return _getdefault('BIDS_fNIRS_subject_folder.json', '_events.json')
-
 
 class Sidecar(JSON):
 
@@ -591,7 +424,7 @@ class Sidecar(JSON):
             self._fields['NIRSSourceOptodeCount'].value = self.Source_SNIRF.nirs[0].probe.sourcePos2D.__len__()
             self._fields['NIRSDetectorOptodeCount'].value = self.Source_SNIRF.nirs[0].probe.detectorPos2D.__len__()
 
-        _logger.info("Sidecar class is rewrite gievn snirf file at " + fpath)
+        _logger.info("Sidecar class is rewrite given snirf file at " + fpath)
 
 
 class BIDS(object):
