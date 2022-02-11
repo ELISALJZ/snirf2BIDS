@@ -110,15 +110,12 @@ class JSON:
             else:
                 raise ValueError('invalid input')
 
-<<<<<<< HEAD
-=======
     def __getattr__(self, name):
         if name in self._fields.keys():
             return self._fields[name].value  # Use the property of the Guy in our managed collection
         else:
             return super(Coordsystem, self).__getattribute__(name)
 
->>>>>>> upstream/main
     def __delattr__(self, name):
         default = self.default_fields()
         if name not in default.keys():
@@ -194,7 +191,7 @@ class Coordsystem(JSON):
         _logger.info("Coordsystem class is rewrite given snirf file at " + fpath)
 
 
-# class Participant(object):
+class Participant(object):
 #
 #     logger: logging.Logger = _logger
 #
@@ -607,13 +604,10 @@ class BIDS(object):
         self.coordsystem = Coordsystem()
         # self.participant = Participant()
         # self.optode = Optode()
-<<<<<<< HEAD
         # self.channel = Channel()
         # self.events = Events()
-=======
-        self.channel = Channel()
+        # self.channel = Channel()
         # self.event = Event()
->>>>>>> upstream/main
         self.sidecar = Sidecar()
 
     def validate(self):
@@ -641,13 +635,10 @@ def Convert():
 
     # build a BIDS dataset from Scratch
     bids = BIDS()
-<<<<<<< HEAD
     # bids.sidecar.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
-=======
     # bids.channel.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
     # bids.channel.load_from_tsv('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_channels.tsv')
-    bids.sidecar.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
->>>>>>> upstream/main
+    # bids.sidecar.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
     #bids.coordsystem.change_type('RequirementLevel')
 
     # print(bids.coordsystem.RequirementLevel)
@@ -662,7 +653,7 @@ def Convert():
         'run-': None,
     }
     #
-    bids.coordsystem.save_to_dir(info=subj1, fpath='/Users/andyzjc/Downloads/SeniorProject/snirf2BIDS')
+    # bids.coordsystem.save_to_dir(info=subj1, fpath='/Users/andyzjc/Downloads/SeniorProject/snirf2BIDS')
     #
     # bids2 = BIDS()
     # bids2.coordsystem.load_from_json(fpath='/Users/andyzjc/Downloads/SeniorProject/snirf2BIDS/sub-01_coordsystem.json')
