@@ -110,6 +110,15 @@ class JSON:
             else:
                 raise ValueError('invalid input')
 
+<<<<<<< HEAD
+=======
+    def __getattr__(self, name):
+        if name in self._fields.keys():
+            return self._fields[name].value  # Use the property of the Guy in our managed collection
+        else:
+            return super(Coordsystem, self).__getattribute__(name)
+
+>>>>>>> upstream/main
     def __delattr__(self, name):
         default = self.default_fields()
         if name not in default.keys():
@@ -185,85 +194,85 @@ class Coordsystem(JSON):
         _logger.info("Coordsystem class is rewrite given snirf file at " + fpath)
 
 
-class Participant(object):
-
-    logger: logging.Logger = _logger
-
-    def __init__(self):
-        pass
-        # fill in the blank
-        #_logger.info("Participant class was created.")
-
-    def __setattr__(self, name, val):
-        if name.startswith('_'):
-            super(Participant, self).__setattr__(name, val)
-
-        elif name in self._fields.keys():
-            if self._fields[name].validate(val):
-                self._fields[name].value = val
-                _logger.info("Field " + name + " had been re-written.")
-            else:
-                raise ValueError("Incorrect data type")
-
-        elif name not in self._fields.keys():
-            if String.validate(val):  # Use our static method to validate a guy of this type before creating it
-                self._fields[name] = String(val)
-                _logger.info("Customized String Field " + name + " had been created.")
-            elif Number.validate(val):
-                self._fields[name] = Number(val)
-                _logger.info("Customized Number Field " + name + " had been created.")
-            else:
-                raise ValueError('invalid input')
-
-    def __getattr__(self, name):
-        if name in self._fields.keys():
-            return self._fields[name].value  # Use the property of the Guy in our managed collection
-        else:
-            return super(Participant, self).__getattribute__(name)  # Fall back to the original __setattr__ behavior
-
-    def __delattr__(self, name):
-        default = _getdefault('BIDS_fNIRS_subject_folder.json', 'participants.tsv')
-        if name not in default.keys():
-            del self._fields[name]
-            _logger.info("field" + name + "was deleted.")
-        else:
-            raise TypeError("Cannot remove a default field!")
-
-    def load_from_file(self, fpath):
-        pass
-        # fill in the blank"
-
-        _logger.info("Participant class is rewrite gievn tsv file at " + fpath)
-
-    def save_to_json(self, info, fpath):
-        pass
-        # fill in the blank
-
-        #_logger.info("Participant class is saved as " + filename + "at " + fpath)
-
-    def save_to_TSV(self, info, fpath):
-        pass
-        # fill in the blank
-
-        # _logger.info("Participant class is saved as " + filename + "at " + fpath)
-
-    def change_type(self, name):
-        if self._fields[name]._type is str:
-            self._fields[name] = Number(None)
-            _logger.info("Field " + name + "had been re-written to number field due to type change.")
-
-        elif self._fields[name]._type is int:
-            self._fields[name] = String(None)
-            _logger.info("Field " + name + "had been re-written to string field due to type change.")
-
-        else:
-            raise TypeError("Invalid field!")
-
-    def default_fields(self):
-        pass
-        # fill in the blank
-
-        # return _getdefault('BIDS_fNIRS_subject_folder.json', 'participants.tsv')
+# class Participant(object):
+#
+#     logger: logging.Logger = _logger
+#
+#     def __init__(self):
+#         pass
+#         # fill in the blank
+#         #_logger.info("Participant class was created.")
+#
+#     def __setattr__(self, name, val):
+#         if name.startswith('_'):
+#             super(Participant, self).__setattr__(name, val)
+#
+#         elif name in self._fields.keys():
+#             if self._fields[name].validate(val):
+#                 self._fields[name].value = val
+#                 _logger.info("Field " + name + " had been re-written.")
+#             else:
+#                 raise ValueError("Incorrect data type")
+#
+#         elif name not in self._fields.keys():
+#             if String.validate(val):  # Use our static method to validate a guy of this type before creating it
+#                 self._fields[name] = String(val)
+#                 _logger.info("Customized String Field " + name + " had been created.")
+#             elif Number.validate(val):
+#                 self._fields[name] = Number(val)
+#                 _logger.info("Customized Number Field " + name + " had been created.")
+#             else:
+#                 raise ValueError('invalid input')
+#
+#     def __getattr__(self, name):
+#         if name in self._fields.keys():
+#             return self._fields[name].value  # Use the property of the Guy in our managed collection
+#         else:
+#             return super(Participant, self).__getattribute__(name)  # Fall back to the original __setattr__ behavior
+#
+#     def __delattr__(self, name):
+#         default = _getdefault('BIDS_fNIRS_subject_folder.json', 'participants.tsv')
+#         if name not in default.keys():
+#             del self._fields[name]
+#             _logger.info("field" + name + "was deleted.")
+#         else:
+#             raise TypeError("Cannot remove a default field!")
+#
+#     def load_from_file(self, fpath):
+#         pass
+#         # fill in the blank"
+#
+#         _logger.info("Participant class is rewrite gievn tsv file at " + fpath)
+#
+#     def save_to_json(self, info, fpath):
+#         pass
+#         # fill in the blank
+#
+#         #_logger.info("Participant class is saved as " + filename + "at " + fpath)
+#
+#     def save_to_TSV(self, info, fpath):
+#         pass
+#         # fill in the blank
+#
+#         # _logger.info("Participant class is saved as " + filename + "at " + fpath)
+#
+#     def change_type(self, name):
+#         if self._fields[name]._type is str:
+#             self._fields[name] = Number(None)
+#             _logger.info("Field " + name + "had been re-written to number field due to type change.")
+#
+#         elif self._fields[name]._type is int:
+#             self._fields[name] = String(None)
+#             _logger.info("Field " + name + "had been re-written to string field due to type change.")
+#
+#         else:
+#             raise TypeError("Invalid field!")
+#
+#     def default_fields(self):
+#         pass
+#         # fill in the blank
+#
+#         # return _getdefault('BIDS_fNIRS_subject_folder.json', 'participants.tsv')
 
 
 class Optode(object):
@@ -407,12 +416,35 @@ class Channel(object):
     def load_from_SNIRF(self, fpath):
         snirf = Snirf(fpath)
         self._Source_snirf = snirf
-        # fill in the blank
-        # _logger.info("Channel class is rewrite gievn snirf file at " + fpath)
+
+        source = snirf.nirs[0].probe.sourceLabels
+        detector = snirf.nirs[0].probe.detectorLabels
+        wavelength = snirf.nirs[0].probe.wavelengths
+
+        name = []
+        label = np.zeros(snirf.nirs[0].data[0].measurementList.__len__())
+        wavelength_nominal = np.zeros(snirf.nirs[0].data[0].measurementList.__len__())
+
+        for i in range(snirf.nirs[0].data[0].measurementList.__len__()):
+            source_index = snirf.nirs[0].data[0].measurementList[i].sourceIndex
+            detector_index = snirf.nirs[0].data[0].measurementList[i].detectorIndex
+            wavelength_index = snirf.nirs[0].data[0].measurementList[i].wavelengthIndex
+
+            name.append(source[source_index-1] + '-' + detector[detector_index-1] + '-' + str(wavelength[wavelength_index-1]))
+            label[i] = snirf.nirs[0].data[0].measurementList[i].dataTypeLabel
+            wavelength_nominal[i] = wavelength[wavelength_index-1]
+
+        self._fields['name'].value = name
+        self._fields['type'].value = label
+        self._fields['source'].value = source
+        self._fields['detector'].value = detector
+        self._fields['wavelength_nominal'].value = wavelength_nominal
+        self._fields['sampling_frequency'].value = np.mean(np.diff(np.array(snirf.nirs[0].data[0].time)))
+
+        _logger.info("Channel class is rewrite gievn snirf file at " + fpath)
 
     def load_from_tsv(self, fpath):
         pass
-        # fill in the blank"
 
         # _logger.info("Channel class is rewrite given tsv file at " + fpath)
 
@@ -435,10 +467,7 @@ class Channel(object):
             raise TypeError("Invalid field!")
 
     def default_fields(self):
-        pass
-        # fill in the blank
-
-        # return _getdefault('BIDS_fNIRS_subject_folder.json', '_channels.tsv')
+        return _getdefault('BIDS_fNIRS_subject_folder.json', '_channels.tsv').keys()
 
 
 class Events(object):
@@ -578,12 +607,19 @@ class BIDS(object):
         self.coordsystem = Coordsystem()
         # self.participant = Participant()
         # self.optode = Optode()
+<<<<<<< HEAD
         # self.channel = Channel()
         # self.events = Events()
+=======
+        self.channel = Channel()
+        # self.event = Event()
+>>>>>>> upstream/main
         self.sidecar = Sidecar()
 
     def validate(self):
         pass
+
+
 
 
 # def importData():
@@ -605,7 +641,13 @@ def Convert():
 
     # build a BIDS dataset from Scratch
     bids = BIDS()
+<<<<<<< HEAD
     # bids.sidecar.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
+=======
+    # bids.channel.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
+    # bids.channel.load_from_tsv('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_channels.tsv')
+    bids.sidecar.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
+>>>>>>> upstream/main
     #bids.coordsystem.change_type('RequirementLevel')
 
     # print(bids.coordsystem.RequirementLevel)
@@ -620,7 +662,7 @@ def Convert():
         'run-': None,
     }
     #
-    # bids.coordsystem.save_to_dir(info=subj1, fpath='/Users/andyzjc/Downloads/SeniorProject/snirf2BIDS')
+    bids.coordsystem.save_to_dir(info=subj1, fpath='/Users/andyzjc/Downloads/SeniorProject/snirf2BIDS')
     #
     # bids2 = BIDS()
     # bids2.coordsystem.load_from_json(fpath='/Users/andyzjc/Downloads/SeniorProject/snirf2BIDS/sub-01_coordsystem.json')
