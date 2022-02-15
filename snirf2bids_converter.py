@@ -9,6 +9,7 @@ from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 from pysnirf2 import Snirf
 import logging
+from pandas import DataFrame
 
 _loggers = {}
 
@@ -87,7 +88,7 @@ class Metadata:
             default[name] = String(None)
 
         self._fields = default
-        self.Source_SNIRF = None
+        self._source_snirf = None
 
     def __setattr__(self, name, val):
         if name.startswith('_'):
@@ -197,7 +198,14 @@ class TSV(Metadata):
 
     """
 
-    # Some functions here lol
+    def save_to_tsv(self, fpath):
+        fields = list(self._fields)[1:]
+        values = list(self._fields.values())[1:]
+        values = [values[i].value for i in range(len(values))]
+        tsvDict = dict(zip(fields, values))
+        tsvDictFiltered = {key: value for key, value in tsvDict.items() if value is not None}
+        tsvDF = DataFrame(tsvDictFiltered)
+        tsvDF.to_csv(fpath + '/' + self.get_class_name().lower() + '.tsv', sep='\t', index=False)
 
 
 class Coordsystem(JSON):
@@ -205,8 +213,8 @@ class Coordsystem(JSON):
     logger: logging.Logger = _logger
 
     def load_from_SNIRF(self, fpath):
-        self.Source_SNIRF = Snirf(fpath)
-        self._fields['NIRSCoordinateUnits'].value = self.Source_SNIRF.nirs[0].metaDataTags.LengthUnit
+        self._source_snirf = Snirf(fpath)
+        self._fields['NIRSCoordinateUnits'].value = self._source_snirf.nirs[0].metaDataTags.LengthUnit
         _logger.info("Coordsystem class is rewritten given snirf file at " + fpath)
 
 
@@ -293,14 +301,29 @@ class Participant(TSV):
 
 class Optodes(TSV):
 
-    logger: logging.Logger = _logger
+    # logger: logging.Logger = _logger
 
     def load_from_SNIRF(self, fpath):
-        snirf = Snirf(fpath)
-        self._Source_snirf = snirf
-        # fill in the blank
+        self._source_snirf = Snirf(fpath)
 
-        #_logger.info("Optode class is rewrite gievn snirf file at " + fpath)
+        self._fields['name'].value = np.append(self._source_snirf.nirs[0].probe.sourceLabels,
+                                               self._source_snirf.nirs[0].probe.detectorLabels)
+        self._fields['type'].value = np.append(['source'] * len(self._source_snirf.nirs[0].probe.sourceLabels),
+                                               ['detector'] * len(self._source_snirf.nirs[0].probe.detectorLabels))
+        if self._source_snirf.nirs[0].probe.detectorPos2D is None and \
+                self._source_snirf.nirs[0].probe.sourcePos2D is None:
+            self._fields['x'].value = np.append(self._source_snirf.nirs[0].probe.sourcePos3D[:, 0],
+                                                self._source_snirf.nirs[0].probe.detectorPos3D[:, 0])
+            self._fields['y'].value = np.append(self._source_snirf.nirs[0].probe.sourcePos3D[:, 1],
+                                                self._source_snirf.nirs[0].probe.detectorPos3D[:, 1])
+            self._fields['z'].value = np.append(self._source_snirf.nirs[0].probe.sourcePos3D[:, 2],
+                                                self._source_snirf.nirs[0].probe.detectorPos3D[:, 2])
+        elif self._source_snirf.nirs[0].probe.detectorPos3D is None and \
+                self._source_snirf.nirs[0].probe.sourcePos3D is None:
+            self._fields['x'].value = np.append(self._source_snirf.nirs[0].probe.sourcePos2D[:, 0],
+                                                self._source_snirf.nirs[0].probe.detectorPos2D[:, 0])
+            self._fields['y'].value = np.append(self._source_snirf.nirs[0].probe.sourcePos2D[:, 1],
+                                                self._source_snirf.nirs[0].probe.detectorPos2D[:, 1])
 
     def load_from_tsv(self, fpath):
         pass
@@ -308,36 +331,30 @@ class Optodes(TSV):
 
         # _logger.info("Optode class is rewrite given tsv file at " + fpath)
 
-    def save_to_tsv(self, info, fpath):
-        pass
-        # fill in the blank
-
-        # _logger.info("Optode class is saved as " + filename + "at " + fpath)
-
 
 class Channels(TSV):
 
     logger: logging.Logger = _logger
 
     def load_from_SNIRF(self, fpath):
-        self.Source_SNIRF = Snirf(fpath)
+        self._source_snirf = Snirf(fpath)
 
-        source = self.Source_SNIRF.nirs[0].probe.sourceLabels
-        detector = self.Source_SNIRF.nirs[0].probe.detectorLabels
-        wavelength = self.Source_SNIRF.nirs[0].probe.wavelengths
+        source = self._source_snirf.nirs[0].probe.sourceLabels
+        detector = self._source_snirf.nirs[0].probe.detectorLabels
+        wavelength = self._source_snirf.nirs[0].probe.wavelengths
 
         name = []
-        label = np.zeros(self.Source_SNIRF.nirs[0].data[0].measurementList.__len__())
-        wavelength_nominal = np.zeros(self.Source_SNIRF.nirs[0].data[0].measurementList.__len__())
+        label = np.zeros(self._source_snirf.nirs[0].data[0].measurementList.__len__())
+        wavelength_nominal = np.zeros(self._source_snirf.nirs[0].data[0].measurementList.__len__())
 
-        for i in range(self.Source_SNIRF.nirs[0].data[0].measurementList.__len__()):
-            source_index = self.Source_SNIRF.nirs[0].data[0].measurementList[i].sourceIndex
-            detector_index = self.Source_SNIRF.nirs[0].data[0].measurementList[i].detectorIndex
-            wavelength_index = self.Source_SNIRF.nirs[0].data[0].measurementList[i].wavelengthIndex
+        for i in range(self._source_snirf.nirs[0].data[0].measurementList.__len__()):
+            source_index = self._source_snirf.nirs[0].data[0].measurementList[i].sourceIndex
+            detector_index = self._source_snirf.nirs[0].data[0].measurementList[i].detectorIndex
+            wavelength_index = self._source_snirf.nirs[0].data[0].measurementList[i].wavelengthIndex
 
             name.append(source[source_index-1] + '-' + detector[detector_index-1] + '-' +
                         str(wavelength[wavelength_index-1]))
-            label[i] = self.Source_SNIRF.nirs[0].data[0].measurementList[i].dataTypeLabel
+            label[i] = self._source_snirf.nirs[0].data[0].measurementList[i].dataTypeLabel
             wavelength_nominal[i] = wavelength[wavelength_index-1]
 
         self._fields['name'].value = name
@@ -345,7 +362,7 @@ class Channels(TSV):
         self._fields['source'].value = source
         self._fields['detector'].value = detector
         self._fields['wavelength_nominal'].value = wavelength_nominal
-        self._fields['sampling_frequency'].value = np.mean(np.diff(np.array(self.Source_SNIRF.nirs[0].data[0].time)))
+        self._fields['sampling_frequency'].value = np.mean(np.diff(np.array(self._source_snirf.nirs[0].data[0].time)))
 
         _logger.info("Channel class is rewrite given snirf file at " + fpath)
 
@@ -354,12 +371,6 @@ class Channels(TSV):
 
         # _logger.info("Channel class is rewrite given tsv file at " + fpath)
 
-    def save_to_tsv(self, info, fpath):
-        pass
-        # fill in the blank
-
-        # _logger.info("Optode class is saved as " + filename + "at " + fpath)
-
 
 class Events(TSV):
 
@@ -367,7 +378,7 @@ class Events(TSV):
 
     def load_from_SNIRF(self, fpath):
         snirf = Snirf(fpath)
-        self._Source_snirf = snirf
+        self._source_snirf = snirf
         # fill in the blank
 
         _logger.info("Event class is rewrite gievn snirf file at " + fpath)
@@ -388,41 +399,24 @@ class Events(TSV):
         self._fields = new
         _logger.info("Event class is rewrite given json file at " + fpath)
 
-    def save_to_dir(self, info, fpath):
-        filename = ""
-        for name in info:
-            if info[name] is not None:
-                filename = filename + name + info[name] + '_'
-        filename = filename + 'events.json'
-        filedir = fpath + '/' + filename
-
-        fields = {}
-        for name in self._fields.keys():
-            fields[name] = self._fields[name].value
-        with open(filedir, 'w') as file:
-            json.dump(fields, file, indent=4)
-        self._fields['path2origin'].value = filedir
-
-        _logger.info("Event class is saved as " + filename + "at " + fpath)
-
 
 class Sidecar(JSON):
 
     logger: logging.Logger = _logger
 
     def load_from_SNIRF(self, fpath):
-        self.Source_SNIRF = Snirf(fpath)
-        self._fields['SamplingFrequency'].value = np.mean(np.diff(np.array(self.Source_SNIRF.nirs[0].data[0].time)))
-        self._fields['NIRSChannelCount'].value = self.Source_SNIRF.nirs[0].data[0].measurementList.__len__()
+        self._source_snirf = Snirf(fpath)
+        self._fields['SamplingFrequency'].value = np.mean(np.diff(np.array(self._source_snirf.nirs[0].data[0].time)))
+        self._fields['NIRSChannelCount'].value = self._source_snirf.nirs[0].data[0].measurementList.__len__()
 
-        if self.Source_SNIRF.nirs[0].probe.detectorPos2D is None \
-                and self.Source_SNIRF.nirs[0].probe.sourcePos2D is None:
-            self._fields['NIRSSourceOptodeCount'].value = self.Source_SNIRF.nirs[0].probe.sourcePos3D.__len__()
-            self._fields['NIRSDetectorOptodeCount'].value = self.Source_SNIRF.nirs[0].probe.detectorPos3D.__len__()
-        elif self.Source_SNIRF.nirs[0].probe.detectorPos3D is None \
-                and self.Source_SNIRF.nirs[0].probe.sourcePos3D is None:
-            self._fields['NIRSSourceOptodeCount'].value = self.Source_SNIRF.nirs[0].probe.sourcePos2D.__len__()
-            self._fields['NIRSDetectorOptodeCount'].value = self.Source_SNIRF.nirs[0].probe.detectorPos2D.__len__()
+        if self._source_snirf.nirs[0].probe.detectorPos2D is None \
+                and self._source_snirf.nirs[0].probe.sourcePos2D is None:
+            self._fields['NIRSSourceOptodeCount'].value = self._source_snirf.nirs[0].probe.sourcePos3D.__len__()
+            self._fields['NIRSDetectorOptodeCount'].value = self._source_snirf.nirs[0].probe.detectorPos3D.__len__()
+        elif self._source_snirf.nirs[0].probe.detectorPos3D is None \
+                and self._source_snirf.nirs[0].probe.sourcePos3D is None:
+            self._fields['NIRSSourceOptodeCount'].value = self._source_snirf.nirs[0].probe.sourcePos2D.__len__()
+            self._fields['NIRSDetectorOptodeCount'].value = self._source_snirf.nirs[0].probe.detectorPos2D.__len__()
 
         _logger.info("Sidecar class is rewrite given snirf file at " + fpath)
 
@@ -436,7 +430,7 @@ class BIDS(object):
 
         self.coordsystem = Coordsystem()
         # self.participant = Participant()
-        # self.optode = Optode()
+        self.optodes = Optodes()
         # self.channel = Channel()
         # self.events = Events()
         # self.channel = Channel()
@@ -447,19 +441,6 @@ class BIDS(object):
         pass
 
 
-
-
-# def importData():
-#     # Import dataset folder
-#     if sys.argv.__len__() > 1:
-#         folderPath = sys.argv[1]
-#     else:
-#         Tk().withdraw()
-#         fPath = askopenfilename(title='Please select a Dataset.')
-#
-#     return fPath
-
-
 def Convert():
     # fPath = importData()
 
@@ -468,6 +449,8 @@ def Convert():
 
     # build a BIDS dataset from Scratch
     bids = BIDS()
+    bids.optodes.load_from_SNIRF('D:\School\SeniorProject\Repos\snirf2BIDS\sub-01_task-tapping_nirs.snirf')
+    bids.optodes.save_to_tsv('D:\School\SeniorProject\Repos\snirf2BIDS')
     # bids.sidecar.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
     # bids.channel.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
     # bids.channel.load_from_tsv('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_channels.tsv')
