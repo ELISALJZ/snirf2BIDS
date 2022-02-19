@@ -9,7 +9,7 @@ from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 from pysnirf2 import Snirf
 import logging
-from pandas import DataFrame, read_csv
+import csv
 
 _loggers = {}
 
@@ -197,22 +197,45 @@ class TSV(Metadata):
         Class object that encapsulates subclasses that create and contain BIDS TSV files
 
     """
-
     def save_to_tsv(self, fpath):
-        fields = list(self._fields)[1:]
-        values = list(self._fields.values())[1:]
-        values = [values[i].value for i in range(len(values))]
-        tsvDict = dict(zip(fields, values))
-        tsvDictFiltered = {key: value for key, value in tsvDict.items() if value is not None}
-        tsvDF = DataFrame(tsvDictFiltered)
-        tsvDF.to_csv(fpath + '/' + self.get_class_name().lower() + '.tsv', sep='\t', index=False)
+        ########     VARIABLE DECLARATION     ###########
+        fields = list(self._fields)[1:] #extract all fields
+        values = list(self._fields.values())[1:] #extract all values
+        values = [values[i].value for i in range(len(values))] #organize all values
+
+        ########     VARIABLE ORGANIZATION     ###########
+        fieldnames = [] # filter out the fieldnames with empty fields, and organize into row structure
+        for i in range(len(fields)):
+            if values[i] is not None:
+                fieldnames = np.append(fieldnames, fields[i])
+        valfiltered = list(filter(None.__ne__, values)) #remove all None fields
+        valfiltered = np.transpose(valfiltered) #tranpose into correct row structure
+
+        ########     TSV FILE WRITING     ###########
+        with open(fpath+'/optodes.tsv','w',newline='') as tsvfile:
+            writer = csv.writer(tsvfile, dialect='excel-tab') #writer setup in tsv format
+            writer.writerow(fieldnames) #write fieldnames
+            writer.writerows(valfiltered)#write rows
 
     def load_from_tsv(self, fpath):
-        # pass
-        tsvDF = read_csv(fpath, sep='\t')
-        for key in tsvDF.to_dict('list').keys():
-            if tsvDF.to_dict('list')[key] is not None:
-                self._fields[key].value = tsvDF.to_dict('list')[key]
+        rows = []
+        with open(fpath) as file:
+            csvreader = csv.reader(file)
+            names = next(csvreader)
+
+            temp = ''.join(name for name in names)
+            if '\ufeff' in temp:
+                temp = temp.split('\ufeff')[1]
+            rows = temp.split('\t')
+
+            for onerow in csvreader:
+                row = ''.join(row for row in onerow)
+                row = row.split('\t')
+                rows = np.vstack((rows, row))
+
+        for i in range(len(rows[0])):
+            onename = rows[0][i]
+            self._fields[onename].value = rows[1:, i]
 
 
 class Coordsystem(JSON):
@@ -365,10 +388,10 @@ def Convert():
 
     # build a BIDS dataset from Scratch
     bids = BIDS()
-    bids.optodes.load_from_SNIRF('D:\School\SeniorProject\Repos\snirf2BIDS\sub-01_task-tapping_nirs.snirf')
-    bids.optodes.save_to_tsv('D:\School\SeniorProject\Repos\snirf2BIDS')
-    bids.optodes.load_from_tsv('D:\School\SeniorProject\Repos\snirf2BIDS\optodes.tsv')
-    bids.optodes.save_to_tsv('D:\School\SeniorProject\Repos')
+    bids.optodes.load_from_SNIRF('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
+    bids.optodes.save_to_tsv('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet')
+    bids.optodes.load_from_tsv('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/optodes.tsv')
+    bids.optodes.save_to_tsv('/Users/jeonghoonchoi/Desktop/SeniorProject/')
     # bids.sidecar.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
     # bids.channel.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
     # bids.channel.load_from_tsv('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_channels.tsv')
