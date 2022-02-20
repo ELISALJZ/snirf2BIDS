@@ -4,6 +4,7 @@ import json
 from pysnirf2 import Snirf
 import csv
 
+
 def _getdefault(fpath, key):
     file = open(fpath)
     fields = json.load(file)
@@ -323,9 +324,13 @@ class Subject(object):
         self.channel = Channels()
         self.sidecar = Sidecar()
         self.event = Events()
+
         self.subinfo = info
 
     def create_sub_folder(self, fpath):
+        pass
+
+    def create_from_snirf(self,fpath):
         pass
 
     def validate(self):
@@ -334,11 +339,6 @@ class Subject(object):
 
 def Convert():
     # fPath = importData()
-
-    # extract BIDS form a SNIRF file
-    # oneBIDS = BIDS_from_SNIRF(fPath)
-
-    # build a BIDS dataset from Scratch
 
     subj1 = {
         'sub-': '01',
