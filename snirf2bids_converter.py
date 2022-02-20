@@ -11,6 +11,20 @@ def _getdefault(fpath, key):
     return fields[key]
 
 
+def _makefiledir(info, classname, fpath):
+    if info is not None:
+        filename = ""
+        for name in info:
+            if info[name] is not None:
+                filename = filename + name + info[name] + '_'
+        filename = filename + classname
+        filedir = fpath + '/' + filename
+    else:
+        filedir = fpath + classname
+
+    return filedir
+
+
 class Field:
     def __init__(self, val):
         self._value = val
@@ -93,8 +107,8 @@ class Metadata:
             return super().__getattribute__(name)
 
     def __delattr__(self, name):
-        default = self.default_fields()
-        if name not in default.keys():
+        default_list, default_type = self.default_fields()
+        if name not in default_list.keys():
             del self._fields[name]
         else:
             raise TypeError("Cannot remove a default field!")
@@ -110,6 +124,7 @@ class Metadata:
             raise TypeError("Invalid field!")
 
     def default_fields(self):
+
         if "sidecar" in self.get_class_name().lower():
             default_list = _getdefault('BIDS_fNIRS_subject_folder.json', "_nirs.json")
             default_type = _getdefault('BIDS_fNIRS_subject_folder_datatype.json', "_nirs.json")
@@ -148,12 +163,9 @@ class JSON(Metadata):
         self._fields = new
 
     def save_to_dir(self, info, fpath):
-        filename = ""
-        for name in info:
-            if info[name] is not None:
-                filename = filename + name + info[name] + '_'
-        filename = filename + self.get_class_name().lower() + '.json'
-        filedir = fpath + '/' + filename
+        
+        classname = self.get_class_name().lower() + '.json'
+        filedir = _makefiledir(info, classname, fpath)
 
         fields = {}
         for name in self._fields.keys():
@@ -169,7 +181,11 @@ class TSV(Metadata):
         Class object that encapsulates subclasses that create and contain BIDS TSV files
 
     """
-    def save_to_tsv(self, fpath):
+    def save_to_tsv(self, info, fpath):
+        
+        classname = self.get_class_name().lower() + '.tsv'
+        filedir = _makefiledir(info, classname, fpath)
+
         ########     VARIABLE DECLARATION     ###########
         fields = list(self._fields)[1:] #extract all fields
         values = list(self._fields.values())[1:] #extract all values
@@ -184,7 +200,7 @@ class TSV(Metadata):
         valfiltered = np.transpose(valfiltered) #tranpose into correct row structure
 
         ########     TSV FILE WRITING     ###########
-        with open(fpath+'/optodes.tsv','w',newline='') as tsvfile:
+        with open(filedir, 'w' ,newline='') as tsvfile:
             writer = csv.writer(tsvfile, dialect='excel-tab') #writer setup in tsv format
             writer.writerow(fieldnames) #write fieldnames
             writer.writerows(valfiltered)#write rows
@@ -300,18 +316,16 @@ class Sidecar(JSON):
 
 class Subject(object):
 
-    def __init__(self):
+    def __init__(self, info):
 
         self.coordsystem = Coordsystem()
-        # self.participant = Participant()
         self.optodes = Optodes()
-        # self.channel = Channel()
-        # self.events = Events()
-        # self.channel = Channel()
-        # self.event = Event()
+        self.channel = Channels()
         self.sidecar = Sidecar()
+        self.event = Events()
+        self.subinfo = info
 
-    def save_to_dir(self, fpath):
+    def create_sub_folder(self, fpath):
         pass
 
     def validate(self):
@@ -325,11 +339,19 @@ def Convert():
     # oneBIDS = BIDS_from_SNIRF(fPath)
 
     # build a BIDS dataset from Scratch
-    bids = Subject()
+
+    subj1 = {
+        'sub-': '01',
+        'ses-': None,
+        'task-': None,
+        'run-': None,
+    }
+
+    bids = Subject(info=subj1)
     # bids.optodes.load_from_SNIRF('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
     # bids.optodes.save_to_tsv('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet')
-    # bids.optodes.load_from_tsv('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/optodes.tsv')
-    # bids.optodes.save_to_tsv('/Users/jeonghoonchoi/Desktop/SeniorProject/')
+    bids.optodes.load_from_tsv('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_optodes.tsv')
+    bids.optodes.save_to_tsv(info=subj1, fpath='/Users/andyzjc/Downloads/SeniorProject/snirf2BIDS')
     # bids.sidecar.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
     # bids.channel.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
     # bids.channel.load_from_tsv('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_channels.tsv')
@@ -341,12 +363,7 @@ def Convert():
     #
     # bids.coordsystem.default_fields()
     #
-    subj1 = {
-        'sub-': '01',
-        'ses-': None,
-        'task-': None,
-        'run-': None,
-    }
+
     #
     # bids.coordsystem.save_to_dir(info=subj1, fpath='/Users/andyzjc/Downloads/SeniorProject/snirf2BIDS')
     #
