@@ -1,33 +1,8 @@
 # To convert a given folder containing snirf files to BIDS folder directory with necessary files
 import numpy as np
-import sys
-import os
-import shutil
 import json
-from colorama import Fore, Style
-from tkinter import Tk
-from tkinter.filedialog import askopenfilename
 from pysnirf2 import Snirf
-import logging
 import csv
-
-_loggers = {}
-
-
-def _create_logger(name, log_file, level=logging.INFO):
-    if name in _loggers.keys():
-        return _loggers[name]
-    handler = logging.FileHandler(log_file)
-    handler.setFormatter(logging.Formatter('%(asctime)s %(lineno)d %(message)s'))
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
-    logger.addHandler(handler)
-    _loggers[name] = logger
-    return logger
-
-
-_logger = _create_logger('fNIRS_BIDS', 'fNIRS_BIDS.log')
-
 
 def _getdefault(fpath, key):
     file = open(fpath)
@@ -81,11 +56,14 @@ class Metadata:
     """
 
     def __init__(self):
-        default_list = self.default_fields()
+        default_list, default_type = self.default_fields()
         default = {'path2origin': String(None)}
         for name in default_list:
             # assume they are all string now
-            default[name] = String(None)
+            if default_type[name] == 'String':
+                default[name] = String(None)
+            elif default_type[name] == 'Number':
+                default[name] = Number(None)
 
         self._fields = default
         self._source_snirf = None
@@ -97,17 +75,14 @@ class Metadata:
         elif name in self._fields.keys():
             if self._fields[name].validate(val):
                 self._fields[name].value = val
-                _logger.info("Field " + name + " had been re-written.")
             else:
                 raise ValueError("Incorrect data type")
 
         elif name not in self._fields.keys():
             if String.validate(val):  # Use our static method to validate a guy of this type before creating it
                 self._fields[name] = String(val)
-                _logger.info("Customized String Field " + name + " had been created.")
             elif Number.validate(val):
                 self._fields[name] = Number(val)
-                _logger.info("Customized Number Field " + name + " had been created.")
             else:
                 raise ValueError('invalid input')
 
@@ -121,18 +96,15 @@ class Metadata:
         default = self.default_fields()
         if name not in default.keys():
             del self._fields[name]
-            _logger.info("field" + name + "was deleted.")
         else:
             raise TypeError("Cannot remove a default field!")
 
     def change_type(self, name):
         if self._fields[name]._type is str:
             self._fields[name] = Number(None)
-            _logger.info("Field " + name + "had been re-written to number field due to type change.")
 
         elif self._fields[name]._type is int:
             self._fields[name] = String(None)
-            _logger.info("Field " + name + "had been re-written to string field due to type change.")
 
         else:
             raise TypeError("Invalid field!")
@@ -140,11 +112,14 @@ class Metadata:
     def default_fields(self):
         if "sidecar" in self.get_class_name().lower():
             default_list = _getdefault('BIDS_fNIRS_subject_folder.json', "_nirs.json")
+            default_type = _getdefault('BIDS_fNIRS_subject_folder_datatype.json', "_nirs.json")
         elif isinstance(self, JSON):
             default_list = _getdefault('BIDS_fNIRS_subject_folder.json', "_" + self.get_class_name().lower() + ".json")
+            default_type = _getdefault('BIDS_fNIRS_subject_folder_datatype.json', "_" + self.get_class_name().lower() + ".json")
         elif isinstance(self, TSV):
             default_list = _getdefault('BIDS_fNIRS_subject_folder.json', "_" + self.get_class_name().lower() + ".tsv")
-        return default_list
+            default_type = _getdefault('BIDS_fNIRS_subject_folder_datatype.json', "_" + self.get_class_name().lower() + ".tsv")
+        return default_list, default_type
 
     def get_class_name(self):
         return self.__class__.__name__
@@ -171,7 +146,6 @@ class JSON(Metadata):
                 raise TypeError("Incorrect Datatype")
 
         self._fields = new
-        _logger.info(self.get_class_name() + " class is rewritten given json file at " + fpath)
 
     def save_to_dir(self, info, fpath):
         filename = ""
@@ -187,8 +161,6 @@ class JSON(Metadata):
         with open(filedir, 'w') as file:
             json.dump(fields, file, indent=4)
         self._fields['path2origin'].value = filedir
-
-        _logger.info(self.get_class_name() + " class is saved as " + filename + "at " + fpath)
 
 
 class TSV(Metadata):
@@ -240,38 +212,12 @@ class TSV(Metadata):
 
 class Coordsystem(JSON):
 
-    logger: logging.Logger = _logger
-
     def load_from_SNIRF(self, fpath):
         self._source_snirf = Snirf(fpath)
         self._fields['NIRSCoordinateUnits'].value = self._source_snirf.nirs[0].metaDataTags.LengthUnit
-        _logger.info("Coordsystem class is rewritten given snirf file at " + fpath)
-
-
-# class Participant(TSV):
-#
-#     def load_from_file(self, fpath):
-#         pass
-#         # fill in the blank"
-#
-#         _logger.info("Participant class is rewrite given tsv file at " + fpath)
-#
-#     def save_to_json(self, info, fpath):
-#         pass
-#         # fill in the blank
-#
-#         #_logger.info("Participant class is saved as " + filename + "at " + fpath)
-#
-#     def save_to_TSV(self, info, fpath):
-#         pass
-#         # fill in the blank
-#
-#         # _logger.info("Participant class is saved as " + filename + "at " + fpath)
 
 
 class Optodes(TSV):
-
-    # logger: logging.Logger = _logger
 
     def load_from_SNIRF(self, fpath):
         self._source_snirf = Snirf(fpath)
@@ -297,8 +243,6 @@ class Optodes(TSV):
 
 
 class Channels(TSV):
-
-    logger: logging.Logger = _logger
 
     def load_from_SNIRF(self, fpath):
         self._source_snirf = Snirf(fpath)
@@ -328,19 +272,13 @@ class Channels(TSV):
         self._fields['wavelength_nominal'].value = wavelength_nominal
         self._fields['sampling_frequency'].value = np.mean(np.diff(np.array(self._source_snirf.nirs[0].data[0].time)))
 
-        _logger.info("Channel class is rewrite given snirf file at " + fpath)
-
 
 class Events(TSV):
-
-    logger: logging.Logger = _logger
 
     def load_from_SNIRF(self, fpath):
         snirf = Snirf(fpath)
         self._source_snirf = snirf
         # fill in the blank
-
-        _logger.info("Event class is rewrite gievn snirf file at " + fpath)
 
 
 class Sidecar(JSON):
@@ -359,13 +297,10 @@ class Sidecar(JSON):
             self._fields['NIRSSourceOptodeCount'].value = self._source_snirf.nirs[0].probe.sourcePos2D.__len__()
             self._fields['NIRSDetectorOptodeCount'].value = self._source_snirf.nirs[0].probe.detectorPos2D.__len__()
 
-        _logger.info("Sidecar class is rewrite given snirf file at " + fpath)
 
-
-class BIDS(object):
+class Subject(object):
 
     def __init__(self):
-        _logger.info("an BIDS instance was created.")
 
         self.coordsystem = Coordsystem()
         # self.participant = Participant()
@@ -375,6 +310,9 @@ class BIDS(object):
         # self.channel = Channel()
         # self.event = Event()
         self.sidecar = Sidecar()
+
+    def save_to_dir(self, fpath):
+        pass
 
     def validate(self):
         pass
@@ -387,11 +325,11 @@ def Convert():
     # oneBIDS = BIDS_from_SNIRF(fPath)
 
     # build a BIDS dataset from Scratch
-    bids = BIDS()
-    bids.optodes.load_from_SNIRF('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
-    bids.optodes.save_to_tsv('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet')
-    bids.optodes.load_from_tsv('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/optodes.tsv')
-    bids.optodes.save_to_tsv('/Users/jeonghoonchoi/Desktop/SeniorProject/')
+    bids = Subject()
+    # bids.optodes.load_from_SNIRF('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
+    # bids.optodes.save_to_tsv('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet')
+    # bids.optodes.load_from_tsv('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/optodes.tsv')
+    # bids.optodes.save_to_tsv('/Users/jeonghoonchoi/Desktop/SeniorProject/')
     # bids.sidecar.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
     # bids.channel.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
     # bids.channel.load_from_tsv('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_channels.tsv')
