@@ -197,6 +197,8 @@ class JSON(Metadata):
     Class object that encapsulates subclasses that create and contain BIDS JSON files
 
     """
+    def __init__(self):
+        super().__init__()
 
     def load_from_json(self, fpath):
         with open(fpath) as file:
@@ -232,6 +234,8 @@ class TSV(Metadata):
         Class object that encapsulates subclasses that create and contain BIDS TSV files
 
     """
+    def __init__(self):
+        super().__init__()
 
     def save_to_tsv(self, info, fpath):
 
@@ -340,10 +344,10 @@ class Channels(TSV):
         wavelength = self._source_snirf.nirs[0].probe.wavelengths
 
         name = []
-        label = np.zeros(self._source_snirf.nirs[0].data[0].measurementList.__len__())
-        wavelength_nominal = np.zeros(self._source_snirf.nirs[0].data[0].measurementList.__len__())
+        label = np.zeros(len(self._source_snirf.nirs[0].data[0].measurementList))
+        wavelength_nominal = np.zeros(len(self._source_snirf.nirs[0].data[0].measurementList))
 
-        for i in range(self._source_snirf.nirs[0].data[0].measurementList.__len__()):
+        for i in range(len(self._source_snirf.nirs[0].data[0].measurementList)):
             source_index = self._source_snirf.nirs[0].data[0].measurementList[i].sourceIndex
             detector_index = self._source_snirf.nirs[0].data[0].measurementList[i].detectorIndex
             wavelength_index = self._source_snirf.nirs[0].data[0].measurementList[i].wavelengthIndex
@@ -386,16 +390,16 @@ class Sidecar(JSON):
     def load_from_SNIRF(self, fpath):
         self._source_snirf = Snirf(fpath)
         self._fields['SamplingFrequency'].value = np.mean(np.diff(np.array(self._source_snirf.nirs[0].data[0].time)))
-        self._fields['NIRSChannelCount'].value = self._source_snirf.nirs[0].data[0].measurementList.__len__()
+        self._fields['NIRSChannelCount'].value = len(self._source_snirf.nirs[0].data[0].measurementList)
 
         if self._source_snirf.nirs[0].probe.detectorPos2D is None \
                 and self._source_snirf.nirs[0].probe.sourcePos2D is None:
-            self._fields['NIRSSourceOptodeCount'].value = self._source_snirf.nirs[0].probe.sourcePos3D.__len__()
-            self._fields['NIRSDetectorOptodeCount'].value = self._source_snirf.nirs[0].probe.detectorPos3D.__len__()
+            self._fields['NIRSSourceOptodeCount'].value = len(self._source_snirf.nirs[0].probe.sourcePos3D)
+            self._fields['NIRSDetectorOptodeCount'].value = len(self._source_snirf.nirs[0].probe.detectorPos3D)
         elif self._source_snirf.nirs[0].probe.detectorPos3D is None \
                 and self._source_snirf.nirs[0].probe.sourcePos3D is None:
-            self._fields['NIRSSourceOptodeCount'].value = self._source_snirf.nirs[0].probe.sourcePos2D.__len__()
-            self._fields['NIRSDetectorOptodeCount'].value = self._source_snirf.nirs[0].probe.detectorPos2D.__len__()
+            self._fields['NIRSSourceOptodeCount'].value = len(self._source_snirf.nirs[0].probe.sourcePos2D)
+            self._fields['NIRSDetectorOptodeCount'].value = len(self._source_snirf.nirs[0].probe.detectorPos2D)
 
 
 class Subject(object):
@@ -448,6 +452,7 @@ def Convert():
 
     ######## MAKING SUBJECT WITH INFORMATION ALREADY LOADED ###################
     bids = Subject(fpath='/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
+    # bids = Subject(fpath='/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf',textpath=...?)
 
     ############################## MAKING SUBJECT WITHOUT ANY INFORMATION ############################
     bids1 = Subject()
