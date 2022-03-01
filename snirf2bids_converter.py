@@ -416,7 +416,7 @@ class Subject(object):
 
     def pull_task(self, fpath=None):
         if self.sidecar.TaskName is None:
-            pull_field(fpath, 'task-')
+            return pull_field(fpath, 'task-')
         else:
             return self.sidecar.TaskName
 
