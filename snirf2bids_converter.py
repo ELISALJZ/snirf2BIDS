@@ -12,6 +12,54 @@ def _getdefault(fpath, key):
     return fields[key]
 
 
+def pull_field(fpath, field):
+    # function for pulling info values from filename if it is BIDS compliant
+    if fpath is None:
+        return None
+    fname = fpath.split('/')[-1]
+    if field not in fname:
+        # if the info is not even mentioned in the file name
+        return None
+    else:
+        # if it is mentioned in the filename
+        info = fname.split('_')
+        for i in info:
+            if field in i:
+                if np.size(i.split(field)) == 1:
+                    return None
+                else:
+                    return i.split(field)[1]
+                    # need to get rid of non-alphanumeric for task name
+
+
+def check_empty_field(info):
+    # Check empty fields to make sure required is filled, and optional is filled if wanted by user.
+    for i in list(info.keys()):
+        if i == 'sub-' and info[i] is None:
+            print('Subject number is REQUIRED. Please input subject number: ')
+            info[i] = input()
+        elif i == 'task-' and info[i] is None:
+            print('Task name is REQUIRED. Please input task name: ')
+            info[i] = input()
+        elif i == 'ses-' and info[i] is None:
+            print('Session number is OPTIONAL. Would you like to input a number?: [y/n]')
+            ans = input()
+            if ans == 'y':
+                print('Please input session number: ')
+                info[i] = input()
+            else:
+                pass
+        elif i == 'run-' and info[i] is None:
+            print('Run number is OPTIONAL. Would you like to input a number?: [y/n]')
+            ans = input()
+            if ans == 'y':
+                print('Please input session number: ')
+                info[i] = input()
+            else:
+                pass
+    return info
+
+
 def _makefiledir(info, classname, fpath):
     if info is not None:
         filename = ""
@@ -131,10 +179,12 @@ class Metadata:
             default_type = _getdefault('BIDS_fNIRS_subject_folder_datatype.json', "_nirs.json")
         elif isinstance(self, JSON):
             default_list = _getdefault('BIDS_fNIRS_subject_folder.json', "_" + self.get_class_name().lower() + ".json")
-            default_type = _getdefault('BIDS_fNIRS_subject_folder_datatype.json', "_" + self.get_class_name().lower() + ".json")
+            default_type = _getdefault('BIDS_fNIRS_subject_folder_datatype.json',
+                                       "_" + self.get_class_name().lower() + ".json")
         elif isinstance(self, TSV):
             default_list = _getdefault('BIDS_fNIRS_subject_folder.json', "_" + self.get_class_name().lower() + ".tsv")
-            default_type = _getdefault('BIDS_fNIRS_subject_folder_datatype.json', "_" + self.get_class_name().lower() + ".tsv")
+            default_type = _getdefault('BIDS_fNIRS_subject_folder_datatype.json',
+                                       "_" + self.get_class_name().lower() + ".tsv")
         return default_list, default_type
 
     def get_class_name(self):
@@ -164,7 +214,7 @@ class JSON(Metadata):
         self._fields = new
 
     def save_to_dir(self, info, fpath):
-        
+
         classname = self.get_class_name().lower() + '.json'
         filedir = _makefiledir(info, classname, fpath)
 
@@ -182,33 +232,34 @@ class TSV(Metadata):
         Class object that encapsulates subclasses that create and contain BIDS TSV files
 
     """
+
     def save_to_tsv(self, info, fpath):
-        
+
         classname = self.get_class_name().lower() + '.tsv'
         filedir = _makefiledir(info, classname, fpath)
 
         ########     VARIABLE DECLARATION     ###########
-        fields = list(self._fields)[1:] #extract all fields
-        values = list(self._fields.values())[1:] #extract all values
-        values = [values[i].value for i in range(len(values))] #organize all values
+        fields = list(self._fields)[1:]  # extract all fields
+        values = list(self._fields.values())[1:]  # extract all values
+        values = [values[i].value for i in range(len(values))]  # organize all values
 
         ########     VARIABLE ORGANIZATION     ###########
-        fieldnames = [] # filter out the fieldnames with empty fields, and organize into row structure
+        fieldnames = []  # filter out the fieldnames with empty fields, and organize into row structure
         for i in range(len(fields)):
             if values[i] is not None:
                 fieldnames = np.append(fieldnames, fields[i])
-        valfiltered = list(filter(None.__ne__, values)) #remove all None fields
-        valfiltered = np.transpose(valfiltered) #tranpose into correct row structure
+        valfiltered = list(filter(None.__ne__, values))  # remove all None fields
+        valfiltered = np.transpose(valfiltered)  # tranpose into correct row structure
 
         ########     TSV FILE WRITING     ###########
-        with open(filedir, 'w' ,newline='') as tsvfile:
-            writer = csv.writer(tsvfile, dialect='excel-tab') #writer setup in tsv format
-            writer.writerow(fieldnames) #write fieldnames
-            writer.writerows(valfiltered)#write rows
+        with open(filedir, 'w', newline='') as tsvfile:
+            writer = csv.writer(tsvfile, dialect='excel-tab')  # writer setup in tsv format
+            writer.writerow(fieldnames)  # write fieldnames
+            writer.writerows(valfiltered)  # write rows
 
     def load_from_tsv(self, fpath):
         rows = []
-        with open(fpath) as file:
+        with open(fpath, encoding="utf8", errors='ignore') as file:
             csvreader = csv.reader(file)
             names = next(csvreader)
 
@@ -229,12 +280,26 @@ class TSV(Metadata):
 
 class Coordsystem(JSON):
 
+    def __init__(self, fpath=None):
+        if fpath is not None:
+            Metadata.__init__(self)
+            self.load_from_SNIRF(fpath)
+        else:
+            Metadata.__init__(self)
+
     def load_from_SNIRF(self, fpath):
         self._source_snirf = Snirf(fpath)
         self._fields['NIRSCoordinateUnits'].value = self._source_snirf.nirs[0].metaDataTags.LengthUnit
 
 
 class Optodes(TSV):
+
+    def __init__(self, fpath=None):
+        if fpath is not None:
+            Metadata.__init__(self)
+            self.load_from_SNIRF(fpath)
+        else:
+            Metadata.__init__(self)
 
     def load_from_SNIRF(self, fpath):
         self._source_snirf = Snirf(fpath)
@@ -260,6 +325,12 @@ class Optodes(TSV):
 
 
 class Channels(TSV):
+    def __init__(self, fpath=None):
+        if fpath is not None:
+            Metadata.__init__(self)
+            self.load_from_SNIRF(fpath)
+        else:
+            Metadata.__init__(self)
 
     def load_from_SNIRF(self, fpath):
         self._source_snirf = Snirf(fpath)
@@ -277,10 +348,10 @@ class Channels(TSV):
             detector_index = self._source_snirf.nirs[0].data[0].measurementList[i].detectorIndex
             wavelength_index = self._source_snirf.nirs[0].data[0].measurementList[i].wavelengthIndex
 
-            name.append(source[source_index-1] + '-' + detector[detector_index-1] + '-' +
-                        str(wavelength[wavelength_index-1]))
+            name.append(source[source_index - 1] + '-' + detector[detector_index - 1] + '-' +
+                        str(wavelength[wavelength_index - 1]))
             label[i] = self._source_snirf.nirs[0].data[0].measurementList[i].dataTypeLabel
-            wavelength_nominal[i] = wavelength[wavelength_index-1]
+            wavelength_nominal[i] = wavelength[wavelength_index - 1]
 
         self._fields['name'].value = name
         self._fields['type'].value = label
@@ -291,6 +362,12 @@ class Channels(TSV):
 
 
 class Events(TSV):
+    def __init__(self, fpath=None):
+        if fpath is not None:
+            Metadata.__init__(self)
+            self.load_from_SNIRF(fpath)
+        else:
+            Metadata.__init__(self)
 
     def load_from_SNIRF(self, fpath):
         snirf = Snirf(fpath)
@@ -299,6 +376,12 @@ class Events(TSV):
 
 
 class Sidecar(JSON):
+    def __init__(self, fpath=None):
+        if fpath is not None:
+            Metadata.__init__(self)
+            self.load_from_SNIRF(fpath)
+        else:
+            Metadata.__init__(self)
 
     def load_from_SNIRF(self, fpath):
         self._source_snirf = Snirf(fpath)
@@ -317,46 +400,69 @@ class Sidecar(JSON):
 
 class Subject(object):
 
-    def __init__(self, info):
+    def __init__(self, fpath=None):
+        self.coordsystem = Coordsystem(fpath=fpath)
+        self.optodes = Optodes(fpath=fpath)
+        self.channel = Channels(fpath=fpath)
+        self.sidecar = Sidecar(fpath=fpath)
+        # self.event = Events()
 
-        self.coordsystem = Coordsystem()
-        self.optodes = Optodes()
-        self.channel = Channels()
-        self.sidecar = Sidecar()
-        self.event = Events()
+        self.subinfo = {
+            'sub-': pull_field(fpath, 'sub-'),
+            'ses-': pull_field(fpath, 'ses-'),
+            'task-': self.pull_task(fpath),
+            'run-': pull_field(fpath, 'run-')
+        }
 
-        self.subinfo = info
+    def pull_task(self, fpath=None):
+        if self.sidecar.TaskName is None:
+            return pull_field(fpath, 'task-')
+        else:
+            return self.sidecar.TaskName
 
     def create_sub_folder(self, fpath):
+        # no point in making this function currently.
+        # We would have to access directory which is not ideal for cloud purposes
+
+        # subj = dict({'nirs': {'Coordsystem': self.coordsystem.load_from_json(fpath+'/nirs/sub-'+self.subinfo.get('sub-')+'_coordsystem.json'),
+        #                       'Optodes': self.optodes.load_from_tsv(fpath+'/nirs/sub-'+self.subinfo.get('sub-')+'_optodes.tsv'),
+        #                       'Channels': self.channel.load_from_tsv(fpath+'/nirs/sub-'+self.subinfo.get('sub-')+'_channels.tsv')},
+        #                         'scans': None})
+
         pass
 
-    def create_from_snirf(self,fpath):
-        pass
+    def create_from_snirf(self, fpath):
+        self.subinfo = check_empty_field(self.subinfo)
+        self.coordsystem.load_from_SNIRF(fpath)
+        self.optodes.load_from_SNIRF(fpath)
+        self.channel.load_from_SNIRF(fpath)
+        self.sidecar.load_from_SNIRF(fpath)
 
     def validate(self):
+        # Sreekanth supposedly has it
         pass
 
 
 def Convert():
     # fPath = importData()
 
-    subj1 = {
-        'sub-': '01',
-        'ses-': None,
-        'task-': None,
-        'run-': None,
-    }
+    ######## MAKING SUBJECT WITH INFORMATION ALREADY LOADED ###################
+    bids = Subject(fpath='/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
 
-    bids = Subject(info=subj1)
+    ############################## MAKING SUBJECT WITHOUT ANY INFORMATION ############################
+    bids1 = Subject()
+
+    bids.create_from_snirf('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
     # bids.optodes.load_from_SNIRF('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
-    # bids.optodes.save_to_tsv('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet')
-    bids.optodes.load_from_tsv('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_optodes.tsv')
-    bids.optodes.save_to_tsv(info=subj1, fpath='/Users/andyzjc/Downloads/SeniorProject/snirf2BIDS')
-    # bids.sidecar.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
+    # bids.optodes.save_to_tsv(info=subj1, fpath = '/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet')
+    # bids.optodes.load_from_tsv('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/optodes.tsv')
+    bids.optodes.save_to_tsv(info=subj1, fpath='/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet')
+    # bids.sidecar.load_from_SNIRF('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
+    # bids.sidecar.save_to_dir(info = subj1,fpath = '/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
     # bids.channel.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
     # bids.channel.load_from_tsv('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_channels.tsv')
     # bids.sidecar.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
-    #bids.coordsystem.change_type('RequirementLevel')
+    # bids.coordsystem.change_type('RequirementLevel')
 
     # print(bids.coordsystem.RequirementLevel)
     # bids.coordsystem.test = 'test'
