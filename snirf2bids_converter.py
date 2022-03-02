@@ -365,7 +365,7 @@ class Channels(TSV):
         self._fields['sampling_frequency'].value = np.mean(np.diff(np.array(self._source_snirf.nirs[0].data[0].time)))
 
 
-class Events(TSV):
+    class Events(TSV):
     def __init__(self, fpath=None):
         if fpath is not None:
             super().__init__()
@@ -456,48 +456,3 @@ class Subject(object):
     def validate(self):
         # Sreekanth supposedly has it
         pass
-
-
-def Convert():
-    # fPath = importData()
-
-    ######## MAKING SUBJECT WITH INFORMATION ALREADY LOADED ###################
-    # subject1 = Subject(fpath='/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
-
-    ############################## MAKING SUBJECT WITHOUT ANY INFORMATION ############################
-    # subj1 = Subject()
-
-    # subj1.create_from_snirf('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
-    subject1 = Subject(fpath='/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
-    # subj1.load_from_snirf('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
-    # bids.optodes.load_from_SNIRF('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
-    # bids.optodes.save_to_tsv(info=subj1, fpath = '/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet')
-    # bids.optodes.load_from_tsv('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/optodes.tsv')
-    # bids.optodes.save_to_tsv(info=subj1, fpath='/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet')
-    # bids.sidecar.load_from_SNIRF('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
-    # bids.sidecar.save_to_dir(info = subj1,fpath = '/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
-    # bids.channel.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
-    # bids.channel.load_from_tsv('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_channels.tsv')
-    # bids.sidecar.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
-    # bids.coordsystem.change_type('RequirementLevel')
-
-    # print(bids.coordsystem.RequirementLevel)
-    # bids.coordsystem.test = 'test'
-    #
-    # bids.coordsystem.default_fields()
-    #
-
-    #
-    # bids.coordsystem.save_to_dir(info=subj1, fpath='/Users/andyzjc/Downloads/SeniorProject/snirf2BIDS')
-    #
-    # bids2 = BIDS()
-    # bids2.coordsystem.load_from_json(fpath='/Users/andyzjc/Downloads/SeniorProject/snirf2BIDS/sub-01_coordsystem.json')
-    #
-    # bids3 = BIDS()
-    # bids3.coordsystem.load_from_SNIRF(
-    #     fpath='/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
-    subject1.event.save_to_tsv(subject1.subinfo, '/Users/andyzjc/Downloads')
-    return 0
-
-
-Convert()
