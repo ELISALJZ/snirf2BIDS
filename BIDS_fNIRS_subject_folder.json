@@ -28,7 +28,7 @@
     "ACCELChannelCount": "CONDITIONAL",
     "GYROChannelCount": "CONDITIONAL",
     "MAGNChannelCount": "CONDITIONAL"},
-  "_events.json":
+  "_events.tsv":
   {"RequirementLevel": "REQUIRED",
     "onset": "REQUIRED",
     "duration": "REQUIRED",

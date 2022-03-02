@@ -28,7 +28,7 @@
     "ACCELChannelCount": "Number",
     "GYROChannelCount": "Number",
     "MAGNChannelCount": "Number"},
-  "_events.json":
+  "_events.tsv":
   {"RequirementLevel": "String",
     "onset": "Number",
     "duration": "Number",

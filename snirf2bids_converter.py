@@ -12,7 +12,7 @@ def _getdefault(fpath, key):
     return fields[key]
 
 
-def pull_field(fpath, field):
+def _pull_label(fpath, field):
     # function for pulling info values from filename if it is BIDS compliant
     if fpath is None:
         return None
@@ -32,7 +32,7 @@ def pull_field(fpath, field):
                     # need to get rid of non-alphanumeric for task name
 
 
-def check_empty_field(info):
+def _check_empty_field(info):
     # Check empty fields to make sure required is filled, and optional is filled if wanted by user.
     for i in list(info.keys()):
         if i == 'sub-' and info[i] is None:
@@ -300,10 +300,10 @@ class Optodes(TSV):
 
     def __init__(self, fpath=None):
         if fpath is not None:
-            Metadata.__init__(self)
+            super().__init__()
             self.load_from_SNIRF(fpath)
         else:
-            Metadata.__init__(self)
+            super().__init__()
 
     def load_from_SNIRF(self, fpath):
         self._source_snirf = Snirf(fpath)
@@ -331,10 +331,10 @@ class Optodes(TSV):
 class Channels(TSV):
     def __init__(self, fpath=None):
         if fpath is not None:
-            Metadata.__init__(self)
+            super().__init__()
             self.load_from_SNIRF(fpath)
         else:
-            Metadata.__init__(self)
+            super().__init__()
 
     def load_from_SNIRF(self, fpath):
         self._source_snirf = Snirf(fpath)
@@ -368,24 +368,35 @@ class Channels(TSV):
 class Events(TSV):
     def __init__(self, fpath=None):
         if fpath is not None:
-            Metadata.__init__(self)
+            super().__init__()
             self.load_from_SNIRF(fpath)
         else:
-            Metadata.__init__(self)
+            super().__init__()
 
     def load_from_SNIRF(self, fpath):
-        snirf = Snirf(fpath)
-        self._source_snirf = snirf
-        # fill in the blank
+        self._source_snirf = Snirf(fpath)
+
+        temp = None
+        if len(self._source_snirf.nirs[0].stim) > 0:
+            for one in self._source_snirf.nirs[0].stim:
+                if temp is None:
+                    temp = one.data
+                else:
+                    temp = np.append(temp, one.data, 0)
+
+            temp = temp[np.argsort(temp[:, 0])]
+            self._fields['onset'].value = temp[:, 0]
+            self._fields['duration'].value = temp[:, 1]
+            self._fields['value'].value = temp[:, 2]
 
 
 class Sidecar(JSON):
     def __init__(self, fpath=None):
         if fpath is not None:
-            Metadata.__init__(self)
+            super().__init__()
             self.load_from_SNIRF(fpath)
         else:
-            Metadata.__init__(self)
+            super().__init__()
 
     def load_from_SNIRF(self, fpath):
         self._source_snirf = Snirf(fpath)
@@ -409,22 +420,22 @@ class Subject(object):
         self.optodes = Optodes(fpath=fpath)
         self.channel = Channels(fpath=fpath)
         self.sidecar = Sidecar(fpath=fpath)
-        # self.event = Events()
+        self.event = Events(fpath=fpath)
 
         self.subinfo = {
-            'sub-': pull_field(fpath, 'sub-'),
-            'ses-': pull_field(fpath, 'ses-'),
+            'sub-': _pull_label(fpath, 'sub-'),
+            'ses-': _pull_label(fpath, 'ses-'),
             'task-': self.pull_task(fpath),
-            'run-': pull_field(fpath, 'run-')
+            'run-': _pull_label(fpath, 'run-')
         }
 
     def pull_task(self, fpath=None):
         if self.sidecar.TaskName is None:
-            return pull_field(fpath, 'task-')
+            return _pull_label(fpath, 'task-')
         else:
             return self.sidecar.TaskName
 
-    def create_sub_folder(self, fpath):
+    def load_sub_folder(self, fpath):
         # no point in making this function currently.
         # We would have to access directory which is not ideal for cloud purposes
 
@@ -435,8 +446,8 @@ class Subject(object):
 
         pass
 
-    def create_from_snirf(self, fpath):
-        self.subinfo = check_empty_field(self.subinfo)
+    def load_from_snirf(self, fpath):
+        # self.subinfo = _check_empty_field(self.subinfo)
         self.coordsystem.load_from_SNIRF(fpath)
         self.optodes.load_from_SNIRF(fpath)
         self.channel.load_from_SNIRF(fpath)
@@ -451,17 +462,18 @@ def Convert():
     # fPath = importData()
 
     ######## MAKING SUBJECT WITH INFORMATION ALREADY LOADED ###################
-    bids = Subject(fpath='/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
-    # bids = Subject(fpath='/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf',textpath=...?)
+    # subject1 = Subject(fpath='/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
 
     ############################## MAKING SUBJECT WITHOUT ANY INFORMATION ############################
-    bids1 = Subject()
+    # subj1 = Subject()
 
-    bids.create_from_snirf('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
+    # subj1.create_from_snirf('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
+    subject1 = Subject(fpath='/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
+    # subj1.load_from_snirf('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
     # bids.optodes.load_from_SNIRF('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
     # bids.optodes.save_to_tsv(info=subj1, fpath = '/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet')
     # bids.optodes.load_from_tsv('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/optodes.tsv')
-    bids.optodes.save_to_tsv(info=subj1, fpath='/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet')
+    # bids.optodes.save_to_tsv(info=subj1, fpath='/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet')
     # bids.sidecar.load_from_SNIRF('/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
     # bids.sidecar.save_to_dir(info = subj1,fpath = '/Users/jeonghoonchoi/Desktop/SeniorProject/TestDataSet/sub-01_task-tapping_nirs.snirf')
     # bids.channel.load_from_SNIRF('/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
@@ -484,6 +496,7 @@ def Convert():
     # bids3 = BIDS()
     # bids3.coordsystem.load_from_SNIRF(
     #     fpath='/Users/andyzjc/Downloads/SeniorProject/SampleData/RobExampleData/sub-01/nirs/sub-01_task-test_nirs.snirf')
+    subject1.event.save_to_tsv(subject1.subinfo, '/Users/andyzjc/Downloads')
     return 0
 
 
