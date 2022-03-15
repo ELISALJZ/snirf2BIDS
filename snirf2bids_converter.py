@@ -91,12 +91,15 @@ class String(Field):
 
     def __init__(self, val):
         super().__init__(val)
-        self._type = str
+        self.type = str
 
     @staticmethod
     def validate(val):
         if type(val) is str or val is None:
             return True
+
+    def get_type(self):
+        return self.type
 
 
 class Number(Field):
@@ -109,6 +112,9 @@ class Number(Field):
     def validate(val):
         if type(val) is not str or val is None:
             return True
+
+    def get_type(self):
+        return self.type
 
 
 class Metadata:
@@ -163,10 +169,10 @@ class Metadata:
             raise TypeError("Cannot remove a default field!")
 
     def change_type(self, name):
-        if self._fields[name]._type is str:
+        if self._fields[name].get_type() is str:
             self._fields[name] = Number(None)
 
-        elif self._fields[name]._type is int:
+        elif self._fields[name].get_type() is int:
             self._fields[name] = String(None)
 
         else:
@@ -242,12 +248,12 @@ class TSV(Metadata):
         classname = self.get_class_name().lower() + '.tsv'
         filedir = _makefiledir(info, classname, fpath)
 
-        ########     VARIABLE DECLARATION     ###########
+        # VARIABLE DECLARATION
         fields = list(self._fields)[1:]  # extract all fields
         values = list(self._fields.values())[1:]  # extract all values
         values = [values[i].value for i in range(len(values))]  # organize all values
 
-        ########     VARIABLE ORGANIZATION     ###########
+        # VARIABLE ORGANIZATION
         fieldnames = []  # filter out the fieldnames with empty fields, and organize into row structure
         for i in range(len(fields)):
             if values[i] is not None:
@@ -255,14 +261,13 @@ class TSV(Metadata):
         valfiltered = list(filter(None.__ne__, values))  # remove all None fields
         valfiltered = np.transpose(valfiltered)  # tranpose into correct row structure
 
-        ########     TSV FILE WRITING     ###########
+        # TSV FILE WRITING
         with open(filedir, 'w', newline='') as tsvfile:
             writer = csv.writer(tsvfile, dialect='excel-tab')  # writer setup in tsv format
             writer.writerow(fieldnames)  # write fieldnames
             writer.writerows(valfiltered)  # write rows
 
     def load_from_tsv(self, fpath):
-        rows = []
         with open(fpath, encoding="utf8", errors='ignore') as file:
             csvreader = csv.reader(file)
             names = next(csvreader)
@@ -478,4 +483,3 @@ class Subject(object):
         fields = {'name': 'sub-' + self.get_subj(), 'filenames': None, 'sessions': self.get_ses()}
         out = json.dumps(fields)
         # open('directory','w').write(out)
-
