@@ -540,12 +540,8 @@ class Subject(object):
             return self.subinfo['ses-']
 
     def export(self, fpath = None):
-        if self.subinfo['ses-'] is None: #if there is no session
+        if self.subinfo['ses-'] is None:
             subj = {'name': 'sub-' + self.get_subj(), 'filenames': self.pull_fnames(), 'sessions': self.get_ses()}
-        else: #if there is a session
-            subj, ses = self.pull_fnames()
-            session = {'name': 'ses-' + self.get_ses(), 'filenames': ses}
-            subj = {'name': 'sub-' + self.get_subj(), 'filenames': subj, 'sessions': session}
 
         out = json.dumps(subj)
         if fpath is None:
