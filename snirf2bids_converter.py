@@ -74,6 +74,33 @@ def _makefiledir(info, classname, fpath):
     return filedir
 
 
+def _make_filename(classname, info):
+    """Make file names based on file info"""
+    subject = 'sub-' + info['sub-']
+    task = '_task-' + info['task-']
+
+    if info['ses-'] is None:
+        session = ''
+    else:
+        session = '_ses-' + info['ses-']
+
+    if info['run-'] is None:
+        run = ''
+    else:
+        run = '_run-' + info['run-']
+
+    if classname == 'optodes':
+        return subject + session + '_optodes.tsv'
+    elif classname == 'coordsystem':
+        return subject + session + '_coordsystem.json'
+    elif classname == 'events':
+        return subject + session + task + run + '_events.tsv'
+    elif classname == 'sidecar':
+        return subject + session + task + run + '_nirs.json'
+    else:
+        return subject + session + task + run + '_channels.tsv'
+
+
 class Field:
     def __init__(self, val):
         self._value = val
@@ -91,12 +118,15 @@ class String(Field):
 
     def __init__(self, val):
         super().__init__(val)
-        self._type = str
+        self.type = str
 
     @staticmethod
     def validate(val):
         if type(val) is str or val is None:
             return True
+
+    def get_type(self):
+        return self.type
 
 
 class Number(Field):
@@ -109,6 +139,9 @@ class Number(Field):
     def validate(val):
         if type(val) is not str or val is None:
             return True
+
+    def get_type(self):
+        return self.type
 
 
 class Metadata:
@@ -163,10 +196,10 @@ class Metadata:
             raise TypeError("Cannot remove a default field!")
 
     def change_type(self, name):
-        if self._fields[name]._type is str:
+        if self._fields[name].get_type() is str:
             self._fields[name] = Number(None)
 
-        elif self._fields[name]._type is int:
+        elif self._fields[name].get_type() is int:
             self._fields[name] = String(None)
 
         else:
@@ -197,6 +230,7 @@ class JSON(Metadata):
     Class object that encapsulates subclasses that create and contain BIDS JSON files
 
     """
+
     def __init__(self):
         super().__init__()
 
@@ -234,6 +268,7 @@ class TSV(Metadata):
         Class object that encapsulates subclasses that create and contain BIDS TSV files
 
     """
+
     def __init__(self):
         super().__init__()
 
@@ -242,12 +277,12 @@ class TSV(Metadata):
         classname = self.get_class_name().lower() + '.tsv'
         filedir = _makefiledir(info, classname, fpath)
 
-        ########     VARIABLE DECLARATION     ###########
+        # VARIABLE DECLARATION
         fields = list(self._fields)[1:]  # extract all fields
         values = list(self._fields.values())[1:]  # extract all values
         values = [values[i].value for i in range(len(values))]  # organize all values
 
-        ########     VARIABLE ORGANIZATION     ###########
+        # VARIABLE ORGANIZATION
         fieldnames = []  # filter out the fieldnames with empty fields, and organize into row structure
         for i in range(len(fields)):
             if values[i] is not None:
@@ -255,14 +290,13 @@ class TSV(Metadata):
         valfiltered = list(filter(None.__ne__, values))  # remove all None fields
         valfiltered = np.transpose(valfiltered)  # tranpose into correct row structure
 
-        ########     TSV FILE WRITING     ###########
+        # TSV FILE WRITING
         with open(filedir, 'w', newline='') as tsvfile:
             writer = csv.writer(tsvfile, dialect='excel-tab')  # writer setup in tsv format
             writer.writerow(fieldnames)  # write fieldnames
             writer.writerows(valfiltered)  # write rows
 
     def load_from_tsv(self, fpath):
-        rows = []
         with open(fpath, encoding="utf8", errors='ignore') as file:
             csvreader = csv.reader(file)
             names = next(csvreader)
@@ -365,7 +399,7 @@ class Channels(TSV):
         self._fields['sampling_frequency'].value = np.mean(np.diff(np.array(self._source_snirf.nirs[0].data[0].time)))
 
 
-    class Events(TSV):
+class Events(TSV):
     def __init__(self, fpath=None):
         if fpath is not None:
             super().__init__()
@@ -435,6 +469,41 @@ class Subject(object):
         else:
             return self.sidecar.TaskName
 
+    def pull_fnames(self):
+        # Check directory for files (not folders), have to figure out how to do this based on the database structure
+        """
+                In the case of the test snirf file, there is no presence of:
+                1. session number
+                2. run number
+        """
+        ### Case of No SESSION OR RUN NUMBER ###
+        if self.subinfo['ses-'] is None and self.subinfo['run-'] is None:
+            fields = ['optodes', 'coordsystem', 'sidecar', 'events', 'channel']
+            subj_fnames = {field: None for field in fields}
+            keylist = list(subj_fnames.keys())
+            for key in keylist:
+                subj_fnames[key] = _make_filename(key, self.subinfo)
+
+            ses_fnames is None
+
+        ### CASE OF SESSION EXISTING ###
+        if self.subinfo['ses-'] is not None and self.subinfo['run-'] is None:
+            subj_fields = ['optodes', 'coordsystem']
+            ses_fields = ['sidecar', 'events', 'channel']
+
+            subj_fnames = {field: None for field in subj_fields}
+            keylist = list(subj_fnames.keys())
+            for key in keylist:
+                subj_fnames[key] = _make_filename(key, self.subinfo)
+
+            ses_fnames = {field: None for field in ses_fields}
+            keylist = list(ses_fnames.keys())
+            for key in keylist:
+                ses_fnames[key] = _make_filename(key, self.subinfo)
+
+        return subj_fnames, ses_fnames
+
+
     def load_sub_folder(self, fpath):
         # no point in making this function currently.
         # We would have to access directory which is not ideal for cloud purposes
@@ -456,3 +525,31 @@ class Subject(object):
     def validate(self):
         # Sreekanth supposedly has it
         pass
+
+    def get_subj(self):
+        if self.subinfo['sub-'] is None:
+            return ''
+        else:
+            return self.subinfo['sub-']
+
+    def get_ses(self):
+        if self.subinfo['ses-'] is None:
+            return None
+        else:
+            # Pull out the sessions here with a function
+            pass
+
+    def export(self, fpath = None):
+        if info['ses-'] is None: #if there is no session
+            subj = {'name': 'sub-' + self.get_subj(), 'filenames': self.pull_fnames(), 'sessions': self.get_ses()}
+        else: #if there is a session
+            subj, ses = self.pullfnames()
+            session = {'name': 'ses-' + self.get_ses(), 'filenames': ses}
+            subj = {'name': 'sub-' + self.get_subj(), 'filenames': subj, 'sessions': session}
+
+        out = json.dumps(subj)
+        if fpath is None:
+            return out
+        else:
+            open(fpath+'/snirf.json', 'w').write(out)
+            return 0
