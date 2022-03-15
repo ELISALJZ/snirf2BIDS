@@ -537,13 +537,13 @@ class Subject(object):
             return None
         else:
             # Pull out the sessions here with a function
-            pass
+            return self.subinfo['ses-']
 
     def export(self, fpath = None):
-        if info['ses-'] is None: #if there is no session
+        if self.subinfo['ses-'] is None: #if there is no session
             subj = {'name': 'sub-' + self.get_subj(), 'filenames': self.pull_fnames(), 'sessions': self.get_ses()}
         else: #if there is a session
-            subj, ses = self.pullfnames()
+            subj, ses = self.pull_fnames()
             session = {'name': 'ses-' + self.get_ses(), 'filenames': ses}
             subj = {'name': 'sub-' + self.get_subj(), 'filenames': subj, 'sessions': session}
 
