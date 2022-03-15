@@ -365,7 +365,7 @@ class Channels(TSV):
         self._fields['sampling_frequency'].value = np.mean(np.diff(np.array(self._source_snirf.nirs[0].data[0].time)))
 
 
-    class Events(TSV):
+class Events(TSV):
     def __init__(self, fpath=None):
         if fpath is not None:
             super().__init__()
@@ -435,6 +435,10 @@ class Subject(object):
         else:
             return self.sidecar.TaskName
 
+    def pull_fnames(self):
+        # Check directory for files (not folders), have to figure out how to do this based on the database structure
+        pass
+
     def load_sub_folder(self, fpath):
         # no point in making this function currently.
         # We would have to access directory which is not ideal for cloud purposes
@@ -456,3 +460,22 @@ class Subject(object):
     def validate(self):
         # Sreekanth supposedly has it
         pass
+
+    def get_subj(self):
+        if self.subinfo['sub-'] is None:
+            return ''
+        else:
+            return self.subinfo['sub-']
+
+    def get_ses(self):
+        if self.subinfo['ses-'] is None:
+            return None
+        else:
+            # Pull out the sessions here with a function
+            pass
+
+    def export(self):
+        fields = {'name': 'sub-' + self.get_subj(), 'filenames': None, 'sessions': self.get_ses()}
+        out = json.dumps(fields)
+        # open('directory','w').write(out)
+
