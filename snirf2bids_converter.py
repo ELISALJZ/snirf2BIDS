@@ -63,7 +63,7 @@ def _check_empty_field(info):
 def _makefiledir(info, classname, fpath):
     if info is not None:
         filename = _make_filename(classname, info)
-        filedir = fpath + '/' + filename
+        filedir = fpath + '\\' + filename
     else:
         raise ValueError("No subject info for BIDS file naming reference")
 
@@ -221,6 +221,16 @@ class Metadata:
     def get_class_name(self):
         return self.__class__.__name__
 
+    def get_column(self, name):
+        self.__getattr__(name)
+
+    def get_column_names(self):
+        fieldnames = []  # filter out the fieldnames with empty fields, and organize into row structure
+        for name in self._fields.keys():
+            if self._fields[name].value is not None:
+                fieldnames = np.append(fieldnames, name)
+        return fieldnames
+
 
 class JSON(Metadata):
     """ JSON Class
@@ -249,12 +259,13 @@ class JSON(Metadata):
 
     def save_to_json(self, info, fpath):
 
-        classname = self.get_class_name().lower() + '.json'
+        classname = self.get_class_name().lower()
         filedir = _makefiledir(info, classname, fpath)
 
         fields = {}
         for name in self._fields.keys():
-            fields[name] = self._fields[name].value
+            if self._fields[name].value is not None:
+                fields[name] = self._fields[name].value
         with open(filedir, 'w') as file:
             json.dump(fields, file, indent=4)
         self._fields['path2origin'].value = filedir
@@ -272,7 +283,7 @@ class TSV(Metadata):
 
     def save_to_tsv(self, info, fpath):
 
-        classname = self.get_class_name().lower() + '.tsv'
+        classname = self.get_class_name().lower()
         filedir = _makefiledir(info, classname, fpath)
 
         # VARIABLE DECLARATION
@@ -287,6 +298,8 @@ class TSV(Metadata):
                 fieldnames = np.append(fieldnames, fields[i])
         valfiltered = list(filter(None.__ne__, values))  # remove all None fields
         valfiltered = np.transpose(valfiltered)  # transpose into correct row structure
+        # if classname == 'channels':
+        #
 
         # TSV FILE WRITING
         with open(filedir, 'w', newline='') as tsvfile:
@@ -379,7 +392,9 @@ class Channels(TSV):
             wavelength = s.nirs[0].probe.wavelengths
 
             name = []
-            label = np.zeros(len(s.nirs[0].data[0].measurementList))
+            source_list = []
+            detector_list = []
+            label = []
             wavelength_nominal = np.zeros(len(s.nirs[0].data[0].measurementList))
 
             for i in range(len(s.nirs[0].data[0].measurementList)):
@@ -389,23 +404,28 @@ class Channels(TSV):
 
                 name.append(source[source_index - 1] + '-' + detector[detector_index - 1] + '-' +
                             str(wavelength[wavelength_index - 1]))
-                label[i] = s.nirs[0].data[0].measurementList[i].dataTypeLabel
+                label.append(s.nirs[0].data[0].measurementList[i].dataTypeLabel)
+                source_list.append(source[source_index - 1])
+                detector_list.append(detector[detector_index - 1])
                 wavelength_nominal[i] = wavelength[wavelength_index - 1]
 
-            self._fields['name'].value = name
+            self._fields['name'].value = np.array(name)
             self._fields['type'].value = label
-            self._fields['source'].value = source
-            self._fields['detector'].value = detector
+            self._fields['source'].value = source_list
+            self._fields['detector'].value = detector_list
             self._fields['wavelength_nominal'].value = wavelength_nominal
 
 
 class Events(TSV):
-    def __init__(self, fpath=None):
+    def __init__(self, fpath=None, spath=None):
         if fpath is not None:
             super().__init__()
             self.load_from_SNIRF(fpath)
         else:
             super().__init__()
+
+        if spath is not None:
+            pass
 
     def load_from_SNIRF(self, fpath):
         self._source_snirf = fpath
@@ -569,6 +589,18 @@ class Subject(object):
                 return 0
 
 
-def snirf_to_bids(snirf: str, output: str):
+def snirf_to_bids(snirf: str, output: str, participants: dict = None):
     subj = Subject(snirf)
     subj.export('Folder', output)
+    fname = output + '/participants.tsv'
+
+    # This will probably work only with a single SNIRF file for now
+    with open(fname, 'w', newline='') as f:
+        if participants is None:
+            writer = csv.DictWriter(f, fieldnames=['participant_id'], delimiter="\t", quotechar='"')
+            writer.writeheader()
+            writer.writerow({'participant_id': 'sub-' + subj.get_subj()})
+        else:
+            writer = csv.DictWriter(f, fieldnames=list(participants.keys()), delimiter="\t", quotechar='"')
+            writer.writeheader()
+            writer.writerow(participants)
