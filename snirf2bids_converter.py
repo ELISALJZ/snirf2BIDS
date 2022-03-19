@@ -124,6 +124,7 @@ def _pull_participant(field, fpath=None):
 
     return value
 
+
 class Field:
     def __init__(self, val):
         self._value = val
@@ -198,7 +199,9 @@ class Metadata:
                 raise ValueError("Incorrect data type")
 
         elif name not in self._fields.keys():
-            if String.validate(val):  # Use our static method to validate a guy of this type before creating it
+            if name == 'sidecar':
+                self._sidecar = None
+            elif String.validate(val):  # Use our static method to validate a guy of this type before creating it
                 self._fields[name] = String(val)
             elif Number.validate(val):
                 self._fields[name] = Number(val)
@@ -307,6 +310,7 @@ class TSV(Metadata):
 
     def __init__(self):
         super().__init__()
+        self._sidecar = None
 
     def save_to_tsv(self, info, fpath):
 
@@ -353,6 +357,22 @@ class TSV(Metadata):
             onename = rows[0][i]
             self._fields[onename].value = rows[1:, i]
 
+    def make_sidecar(self):
+        """
+        PUTS THE CORRECT FIELDS INSIDE THE SIDECAR FILE RATHER THAN ALL POSSIBLE FIELDS
+        """
+        keylist = list(self.get_column_names())
+        d = {}
+        for i in keylist:
+            d[i] = None
+        return d
+
+    def default_sidecar(self):
+        fields = _getdefault('BIDS_fNIRS_subject_folder.json',self.get_class_name())
+
+    def pull_sidecar(self):
+        pass
+
 
 class Coordsystem(JSON):
 
@@ -375,6 +395,7 @@ class Optodes(TSV):
         if fpath is not None:
             super().__init__()
             self.load_from_SNIRF(fpath)
+            self._sidecar = self.make_sidecar()
         else:
             super().__init__()
 
@@ -407,6 +428,7 @@ class Channels(TSV):
         if fpath is not None:
             super().__init__()
             self.load_from_SNIRF(fpath)
+            self._sidecar = self.make_sidecar()
         else:
             super().__init__()
 
@@ -448,6 +470,7 @@ class Events(TSV):
         if fpath is not None:
             super().__init__()
             self.load_from_SNIRF(fpath)
+            self._sidecar = self.make_sidecar()
         else:
             super().__init__()
 
@@ -520,12 +543,12 @@ class Subject(object):
         }
         self.participant = {
             # REQUIRED BY SNIRF SPECIFICATION #
-            'SubjectID': 'sub-'+_pull_label(fpath, 'sub-'), # doesn't require function...
-            'MeasurementDate':_pull_participant('MeasurementDate', fpath=fpath),
-            'MeasurementTime':_pull_participant('MeasurementTime', fpath=fpath),
-            'LengthUnit': _pull_participant('LengthUnit',fpath=fpath),
-            'TimeUnit': _pull_participant('TimeUnit',fpath=fpath),
-            'FrequencyUnit': _pull_participant('FrequencyUnit',fpath=fpath),
+            'participant_id': 'sub-'+_pull_label(fpath, 'sub-'), # doesn't require function...
+            # 'MeasurementDate':_pull_participant('MeasurementDate', fpath=fpath),
+            # 'MeasurementTime':_pull_participant('MeasurementTime', fpath=fpath),
+            # 'LengthUnit': _pull_participant('LengthUnit',fpath=fpath),
+            # 'TimeUnit': _pull_participant('TimeUnit',fpath=fpath),
+            # 'FrequencyUnit': _pull_participant('FrequencyUnit',fpath=fpath),
 
             # RECOMMENDED BY BIDS #
             'species': _pull_participant('species', fpath=fpath), # default homo sapiens based on BIDS
@@ -642,7 +665,7 @@ def snirf_to_bids(snirf: str, output: str, participants: dict = None):
     # This will probably work only with a single SNIRF file for now
     with open(fname, 'w', newline='') as f:
         if participants is None:
-            writer = csv.DictWriter(f, fieldnames=['participant_id'], delimiter="\t", quotechar='"')
+            writer = csv.DictWriter(f, fieldnames=list(subj.participant.keys()), delimiter="\t", quotechar='"')
             writer.writeheader()
             writer.writerow({'participant_id': 'sub-' + subj.get_subj()})
         else:
