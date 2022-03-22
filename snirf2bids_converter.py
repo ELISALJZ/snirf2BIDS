@@ -261,6 +261,16 @@ class Metadata:
                 fieldnames = np.append(fieldnames, name)
         return fieldnames
 
+    # def optional_fields(self, default_list):
+    #     """
+    #     FUNCTION THAT WILL CHECK FOR OPTIONAL FIELDS
+    #     """
+    #     list_key = list(default_list.keys())
+    #     field = []
+    #     for i in list_key:
+    #         if default_list[i] == 'OPTIONAL':
+    #             field.append(i)
+
 
 class JSON(Metadata):
     """ JSON Class
@@ -365,13 +375,18 @@ class TSV(Metadata):
         d = {}
         for i in keylist:
             d[i] = None
+
         return d
 
-    def default_sidecar(self):
-        fields = _getdefault('BIDS_fNIRS_subject_folder.json',self.get_class_name())
-
-    def pull_sidecar(self):
-        pass
+    def fill_default_sidecar(self):
+        """
+        PUTS THE DEFAULT DESCRIPTION NOTED IN BIDS SPECIFICATION INTO THE SIDECAR DICTIONARY
+        """
+        fields = _getdefault('BIDS_fNIRS_sidecar_files.json', self.get_class_name().lower())
+        sidecar_keys = list(self._sidecar.keys())
+        for x in sidecar_keys:
+            if self._sidecar[x] is None:
+                self._sidecar[x] = fields[x]
 
 
 class Coordsystem(JSON):
@@ -543,22 +558,21 @@ class Subject(object):
         }
         self.participant = {
             # REQUIRED BY SNIRF SPECIFICATION #
-            'participant_id': 'sub-'+_pull_label(fpath, 'sub-'), # doesn't require function...
-            # 'MeasurementDate':_pull_participant('MeasurementDate', fpath=fpath),
-            # 'MeasurementTime':_pull_participant('MeasurementTime', fpath=fpath),
-            # 'LengthUnit': _pull_participant('LengthUnit',fpath=fpath),
-            # 'TimeUnit': _pull_participant('TimeUnit',fpath=fpath),
-            # 'FrequencyUnit': _pull_participant('FrequencyUnit',fpath=fpath),
+            'participant_id': _pull_participant('SubjectID', fpath=fpath),
+            'MeasurementDate':_pull_participant('MeasurementDate', fpath=fpath),
+            'MeasurementTime':_pull_participant('MeasurementTime', fpath=fpath),
+            'LengthUnit': _pull_participant('LengthUnit',fpath=fpath),
+            'TimeUnit': _pull_participant('TimeUnit',fpath=fpath),
+            'FrequencyUnit': _pull_participant('FrequencyUnit',fpath=fpath),
 
             # RECOMMENDED BY BIDS #
-            'species': _pull_participant('species', fpath=fpath), # default homo sapiens based on BIDS
-            'age': _pull_participant('age', fpath=fpath),
-            'sex': _pull_participant('sex', fpath=fpath), # 1 is male, 2 is female
-            'handedness': _pull_participant('handedness', fpath=fpath),
-            'strain': _pull_participant('strain', fpath=fpath),
-            'strain_rrid': _pull_participant('strain_rrid', fpath=fpath)
+            # 'species': _pull_participant('species', fpath=fpath), # default homo sapiens based on BIDS
+            # 'age': _pull_participant('age', fpath=fpath),
+            # 'sex': _pull_participant('sex', fpath=fpath), # 1 is male, 2 is female
+            # 'handedness': _pull_participant('handedness', fpath=fpath),
+            # 'strain': _pull_participant('strain', fpath=fpath),
+            # 'strain_rrid': _pull_participant('strain_rrid', fpath=fpath)
         }
-
 
     def pull_task(self, fpath=None):
         if self.sidecar.TaskName is None:
