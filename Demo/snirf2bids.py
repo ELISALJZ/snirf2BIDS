@@ -795,7 +795,7 @@ class Subject(object):
         }
         self.participant = {
             # REQUIRED BY SNIRF SPECIFICATION #
-            'participant_id': 'sub-'+_pull_label(fpath, 'sub-'),
+            'participant_id': 'sub-'+self.get_subj(),
 
             # RECOMMENDED BY BIDS #
             'species': _pull_participant('species', fpath=fpath),  # default Homo sapiens based on BIDS
