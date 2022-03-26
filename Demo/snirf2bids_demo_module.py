@@ -6,6 +6,23 @@ import csv
 
 
 def _getdefault(fpath, key):
+    """Get the fields and values/descriptions for a specific Metadata file from a JSON file.
+
+        Args:
+            fpath: The filepath to the JSON file containing the list of default fields (in string)
+            key: The specific Metadata file extension such as _nirs.json, _optodes.tsv, etc.
+
+        Returns:
+            The default fields for the specified Metadata file in a dictionary format.
+            Example output for _coordsystem.json from BIDS_fNIRS_subject_folder.JSON:
+                {'RequirementLevel': 'CONDITIONAL',
+                 'NIRSCoordinateSystem': 'REQUIRED',
+                 'NIRSCoordinateUnits': 'REQUIRED',
+                 'NIRSCoordinateSystemDescription': 'CONDITIONAL',
+                 'NIRSCoordinateProcessingDescription': 'RECOMMENDED',
+                 ...
+                 'FiducialsDescription': 'OPTIONAL'}
+    """
     file = open(fpath)
     fields = json.load(file)
 
@@ -13,7 +30,16 @@ def _getdefault(fpath, key):
 
 
 def _pull_label(fpath, field):
-    # function for pulling info values from filename if it is BIDS compliant
+    """Pull information values from filename if it is BIDS compliant
+
+        Args:
+            fpath: The filepath to the SNIRF file of reference
+            field: The specific participant information field inquired (subject/session/run/task)
+
+        Returns:
+            The label for the specified field
+    """
+
     if fpath is None:
         return None
     fname = fpath.split('/')[-1]
@@ -32,35 +58,21 @@ def _pull_label(fpath, field):
                     # need to get rid of non-alphanumeric for task name
 
 
-def _check_empty_field(info):
-    # Check empty fields to make sure required is filled, and optional is filled if wanted by user.
-    for i in list(info.keys()):
-        if i == 'sub-' and info[i] is None:
-            print('Subject number is REQUIRED. Please input subject number: ')
-            info[i] = input()
-        elif i == 'task-' and info[i] is None:
-            print('Task name is REQUIRED. Please input task name: ')
-            info[i] = input()
-        elif i == 'ses-' and info[i] is None:
-            print('Session number is OPTIONAL. Would you like to input a number?: [y/n]')
-            ans = input()
-            if ans == 'y':
-                print('Please input session number: ')
-                info[i] = input()
-            else:
-                pass
-        elif i == 'run-' and info[i] is None:
-            print('Run number is OPTIONAL. Would you like to input a number?: [y/n]')
-            ans = input()
-            if ans == 'y':
-                print('Please input session number: ')
-                info[i] = input()
-            else:
-                pass
-    return info
-
-
 def _makefiledir(info, classname, fpath):
+    """Create the file directory for specific Metadata files
+
+        Args:
+            info: Subject info field from the Subject class
+            classname: The specific metadata class name (coordsystem, optodes, etc.)
+            fpath: The file path that points to the folder where we intend to save the metadata file in
+
+        Returns:
+            The full directory path for the specific metadata file (in string)
+
+        Raises:
+            ValueError: If there are no subject information
+    """
+
     if info is not None:
         filename = _make_filename(classname, info)
         filedir = fpath + '\\' + filename
@@ -71,7 +83,17 @@ def _makefiledir(info, classname, fpath):
 
 
 def _make_filename(classname, info):
-    """Make file names based on file info"""
+    """Make file names based on file info
+
+        Args:
+            classname: The specific metadata class name (coordsystem, optodes, etc.)
+            info: Subject info field from the Subject class
+
+        Returns:
+            A BIDS formatted file name for the specific metadata file (in string)
+            Example: sub-01_task-tapping_nirs.json for a _nirs.json file
+    """
+
     subject = 'sub-' + info['sub-']
     task = '_task-' + info['task-']
 
@@ -98,12 +120,16 @@ def _make_filename(classname, info):
 
 
 def _pull_participant(field, fpath=None):
-    """
-    Working version of making participants.tsv...
-    Things to consider:
-        more than 1 nirs
-        other fields that user wants to input,
-        other fields that apply within snirf file that does not fit anywhere else...
+    """Creates the participants.tsv file (minimum functionality)
+
+        Only works for a single SNIRF file for now with a predefined set of fields
+
+        Args:
+            field: The specific field/column name in the participants.tsv file
+            fpath: The file path that points to the folder where we intend to save the metadata file in
+
+        Returns:
+            The full directory path for the specific metadata file (in string)
     """
 
     if fpath is not None:
@@ -126,6 +152,12 @@ def _pull_participant(field, fpath=None):
 
 
 class Field:
+    """Class which encapsulates fields inside a Metadata class
+
+        Attributes:
+            _value: The value of the field
+    """
+
     def __init__(self, val):
         self._value = val
 
@@ -139,6 +171,12 @@ class Field:
 
 
 class String(Field):
+    """Subclass which encapsulates fields with string values inside a Metadata class
+
+        Attributes:
+            _value: The value of the field
+            type: Data type of the field - in this case, it's "str"
+    """
 
     def __init__(self, val):
         super().__init__(val)
@@ -154,6 +192,12 @@ class String(Field):
 
 
 class Number(Field):
+    """Subclass which encapsulates fields with numerical values inside a Metadata class
+
+        Attributes:
+            _value: The value of the field
+            type: Data type of the field - in this case, it's "int"
+    """
 
     def __init__(self, val):
         super().__init__(val)
@@ -173,9 +217,16 @@ class Metadata:
 
     Class object that encapsulates the JSON and TSV Metadata File Class
 
+    Attributes:
+        _fields: A dictionary of the fields and the values contained in it for a specific Metadata class
+        _source_snirf: The filepath to the reference SNIRF file to create the specific Metadata class
     """
 
     def __init__(self):
+        """Generic constructor for a Metadata class
+
+        Most importantly, it constructs the default fields with empty values
+        """
         default_list, default_type = self.default_fields()
         default = {'path2origin': String(None)}
         for name in default_list:
@@ -189,6 +240,15 @@ class Metadata:
         self._source_snirf = None
 
     def __setattr__(self, name, val):
+        """Overwrites the attribute setter default function
+
+            Args:
+                name: Name of the field
+                val: The new value to be set for the specified field
+
+            Raises:
+                ValueError: If the data type is incorrect or the input is invalid
+        """
         if name.startswith('_'):
             super().__setattr__(name, val)
 
@@ -209,12 +269,30 @@ class Metadata:
                 raise ValueError('invalid input')
 
     def __getattr__(self, name):
+        """Overwrites the attribute getter default function
+
+            Args:
+                name: The field name
+
+            Returns:
+                The value contained in the specified field
+        """
+
         if name in self._fields.keys():
             return self._fields[name].value  # Use the property of the Guy in our managed collection
         else:
             return super().__getattribute__(name)
 
     def __delattr__(self, name):
+        """Overwrites the attribute deleter default function
+
+            Args:
+                name: The field name
+
+            Raises:
+                TypeError: If the field is considered a default field
+        """
+
         default_list, default_type = self.default_fields()
         if name not in default_list.keys():
             del self._fields[name]
@@ -222,6 +300,15 @@ class Metadata:
             raise TypeError("Cannot remove a default field!")
 
     def change_type(self, name):
+        """Change the data type restriction for a field (from a String class to a Number class or vice versa)
+
+            Args:
+                name: The field name
+
+            Raises:
+                TypeError: If it's an invalid/undeclared field
+        """
+
         if self._fields[name].get_type() is str:
             self._fields[name] = Number(None)
 
@@ -232,6 +319,13 @@ class Metadata:
             raise TypeError("Invalid field!")
 
     def default_fields(self):
+        """Obtain the default fields and their data type for a specific metadata file/class
+
+            Returns:
+                The list of default fields for a specific metadata class and the data type
+                default_list: List of default field names for a specific metadata class
+                default_type: List of default field data types for a specific metadata class
+        """
 
         default_list = None
         default_type = None
@@ -249,12 +343,32 @@ class Metadata:
         return default_list, default_type
 
     def get_class_name(self):
+        """Obtains the name of the specific metadata class
+
+            Returns:
+                The name of the (specific metadata) class
+        """
+
         return self.__class__.__name__
 
     def get_column(self, name):
+        """Obtains the value of a specified field/'column' of a Metadata class
+
+            Args:
+                name: Name of the field/'column'
+
+            Returns:
+                The value of a specified field/'column' - similar to __getattr__
+        """
         self.__getattr__(name)
 
     def get_column_names(self):
+        """Get the names of the field in a specific metadata class/file that has a value(s)
+
+            Returns:
+            A list of field names that have a value in a specific metadata file
+        """
+
         fieldnames = []  # filter out the fieldnames with empty fields, and organize into row structure
         for name in self._fields.keys():
             if self._fields[name].value is not None:
@@ -270,9 +384,18 @@ class JSON(Metadata):
     """
 
     def __init__(self):
+        """Generic constructor for JSON class - uses the one inherited from the Metadata class"""
         super().__init__()
 
     def load_from_json(self, fpath):
+        """Create the JSON metadata class from a JSON file
+
+            Args:
+                fpath: The file path to the reference JSON file
+
+            Raises:
+                TypeError: Incorrect data type for a specific field based on data loaded from the JSON file
+        """
         with open(fpath) as file:
             fields = json.load(file)
         new = {}
@@ -288,6 +411,16 @@ class JSON(Metadata):
         self._fields = new
 
     def save_to_json(self, info, fpath):
+        """Save a JSON inherited class into an output JSON file with a BIDS-compliant name in the file directory
+                designated by the user
+
+        Args:
+            info: Subject info field from the Subject class
+            fpath: The file path that points to the folder where we intend to save the metadata file in
+
+        Returns:
+            Outputs a metadata JSON file with a BIDS-compliant name in the specified file path
+        """
 
         classname = self.get_class_name().lower()
         filedir = _makefiledir(info, classname, fpath)
@@ -306,13 +439,29 @@ class TSV(Metadata):
 
         Class object that encapsulates subclasses that create and contain BIDS TSV files
 
+        Attributes:
+            _sidecar: Contains the field names and descriptions for each field for the Sidecar JSON file
     """
 
     def __init__(self):
+        """Generic Constructor for TSV class - uses the one inherited from the Metadata class
+
+        Additionally, added the sidecar property for the Sidecar JSON files
+        """
         super().__init__()
         self._sidecar = None
 
     def save_to_tsv(self, info, fpath):
+        """Save a TSV inherited class into an output TSV file with a BIDS-compliant name in the file directory
+        designated by the user
+
+            Args:
+                info: Subject info field from the Subject class
+                fpath: The file path that points to the folder where we intend to save the metadata file in
+
+            Returns:
+                Outputs a metadata TSV file with BIDS-compliant name in the specified file path
+        """
 
         classname = self.get_class_name().lower()
         filedir = _makefiledir(info, classname, fpath)
@@ -339,6 +488,12 @@ class TSV(Metadata):
             writer.writerows(valfiltered)  # write rows
 
     def load_from_tsv(self, fpath):
+        """Create the TSV metadata class from a TSV file
+
+            Args:
+                fpath: The file path to the reference TSV file
+        """
+
         with open(fpath, encoding="utf8", errors='ignore') as file:
             csvreader = csv.reader(file)
             names = next(csvreader)
@@ -358,25 +513,41 @@ class TSV(Metadata):
             self._fields[onename].value = rows[1:, i]
 
     def make_sidecar(self):
+        """Allocates an empty dictionary with the correct field names inside the Sidecar file
+
+        Returns:
+            An empty dictionary with the correct fields (that have values) for a specific TSV metadata file
         """
-        PUTS THE CORRECT FIELDS INSIDE THE SIDECAR FILE RATHER THAN ALL POSSIBLE FIELDS
-        """
+
         keylist = list(self.get_column_names())
         d = {}
         for i in keylist:
             d[i] = None
         return d
 
-    def default_sidecar(self):
-        fields = _getdefault('BIDS_fNIRS_subject_folder.json',self.get_class_name())
+    def fill_default_sidecar(self):
+        """Puts the default description noted in BIDS specification into the Sidecar dictionary"""
 
-    def pull_sidecar(self):
-        pass
+        fields = _getdefault('BIDS_fNIRS_sidecar_files.json', self.get_class_name().lower())
+        sidecar_keys = list(self._sidecar.keys())
+        for x in sidecar_keys:
+            if self._sidecar[x] is None:
+                self._sidecar[x] = fields[x]
 
 
 class Coordsystem(JSON):
+    """Coordinate System Metadata Class
+
+    Class object that mimics and contains the data for the coordsystem.JSON metadata file
+    """
 
     def __init__(self, fpath=None):
+        """Inherited constructor for the Coordsystem class
+
+        Args:
+            fpath: The file path to a reference SNIRF file
+        """
+
         if fpath is not None:
             Metadata.__init__(self)
             self.load_from_SNIRF(fpath)
@@ -384,14 +555,29 @@ class Coordsystem(JSON):
             Metadata.__init__(self)
 
     def load_from_SNIRF(self, fpath):
+        """Creates the Coordsystem class based on information from a reference SNIRF file
+
+            Args:
+                fpath: The file path to the reference SNIRF file
+        """
+
         self._source_snirf = fpath
         with Snirf(fpath) as s:
             self._fields['NIRSCoordinateUnits'].value = s.nirs[0].metaDataTags.LengthUnit
 
 
 class Optodes(TSV):
+    """Optodes Metadata Class
+
+    Class object that mimics and contains the data for the optodes.tsv metadata file
+    """
 
     def __init__(self, fpath=None):
+        """Inherited constructor for the Optodes class
+
+            Args:
+                fpath: The file path to a reference SNIRF file
+        """
         if fpath is not None:
             super().__init__()
             self.load_from_SNIRF(fpath)
@@ -400,6 +586,12 @@ class Optodes(TSV):
             super().__init__()
 
     def load_from_SNIRF(self, fpath):
+        """Creates the Optodes class based on information from a reference SNIRF file
+
+            Args:
+                fpath: The file path to the reference SNIRF file
+        """
+
         self._source_snirf = fpath
 
         with Snirf(fpath) as s:
@@ -424,7 +616,17 @@ class Optodes(TSV):
 
 
 class Channels(TSV):
+    """Channels Metadata Class
+
+    Class object that mimics and contains the data for the channels.tsv metadata file
+    """
+
     def __init__(self, fpath=None):
+        """Inherited constructor for the Channels class
+
+            Args:
+                fpath: The file path to a reference SNIRF file
+        """
         if fpath is not None:
             super().__init__()
             self.load_from_SNIRF(fpath)
@@ -433,6 +635,11 @@ class Channels(TSV):
             super().__init__()
 
     def load_from_SNIRF(self, fpath):
+        """Creates the Channels class based on information from a reference SNIRF file
+
+            Args:
+                fpath: The file path to the reference SNIRF file
+        """
         self._source_snirf = fpath
 
         with Snirf(fpath) as s:
@@ -466,7 +673,17 @@ class Channels(TSV):
 
 
 class Events(TSV):
-    def __init__(self, fpath=None, spath=None):
+    """Channels Metadata Class
+
+    Class object that mimics and contains the data for the events.tsv metadata file
+    """
+
+    def __init__(self, fpath=None):
+        """Inherited constructor for the Events class
+
+            Args:
+                fpath: The file path to a reference SNIRF file
+        """
         if fpath is not None:
             super().__init__()
             self.load_from_SNIRF(fpath)
@@ -474,10 +691,12 @@ class Events(TSV):
         else:
             super().__init__()
 
-        if spath is not None:
-            pass
-
     def load_from_SNIRF(self, fpath):
+        """Creates the Events class based on information from a reference SNIRF file
+
+            Args:
+                fpath: The file path to the reference SNIRF file
+        """
         self._source_snirf = fpath
         temp = None
 
@@ -502,7 +721,17 @@ class Events(TSV):
 
 
 class Sidecar(JSON):
+    """NIRS Sidecar(_nirs.JSON) Metadata Class
+
+    Class object that mimics and contains the data for the _nirs.JSON metadata file
+    """
+
     def __init__(self, fpath=None):
+        """Inherited constructor for the Sidecar class
+
+            Args:
+                fpath: The file path to a reference SNIRF file
+        """
         if fpath is not None:
             super().__init__()
             self.load_from_SNIRF(fpath)
@@ -510,6 +739,12 @@ class Sidecar(JSON):
             super().__init__()
 
     def load_from_SNIRF(self, fpath):
+        """Creates the Sidecar class based on information from a reference SNIRF file
+
+            Args:
+                fpath: The file path to the reference SNIRF file
+        """
+
         self._source_snirf = fpath
 
         with Snirf(fpath) as s:
@@ -527,8 +762,25 @@ class Sidecar(JSON):
 
 
 class Subject(object):
+    """'Subject' Class
+
+    Class object that encapsulates a single 'run' (for now) with fields containing the metadata and
+    'subject'/run information
+
+    Attributes:
+        coordsystem: Contains a Coordsystem class object for a specific 'subject'/run
+        optodes: Contains an Optodes class object for a specific 'subject'/run
+        channel: Contains a Channels class object for a specific 'subject'/run
+        sidecar: Contains a Sidecar (_nirs.JSON) class object for a specific 'subject'/run
+        events: Contains an Events class object for a specific 'subject'/run
+        subinfo: Contains the 'subject'/run information related to the data stored in a 'Subject' object
+        participant: Contains the metadata related to the participants.tsv file
+
+    """
 
     def __init__(self, fpath=None):
+        """Constructor for the 'Subject' class"""
+
         self.coordsystem = Coordsystem(fpath=fpath)
         self.optodes = Optodes(fpath=fpath)
         self.channel = Channels(fpath=fpath)
@@ -543,36 +795,48 @@ class Subject(object):
         }
         self.participant = {
             # REQUIRED BY SNIRF SPECIFICATION #
-            'participant_id': 'sub-'+_pull_label(fpath, 'sub-'), # doesn't require function...
-            # 'MeasurementDate':_pull_participant('MeasurementDate', fpath=fpath),
-            # 'MeasurementTime':_pull_participant('MeasurementTime', fpath=fpath),
-            # 'LengthUnit': _pull_participant('LengthUnit',fpath=fpath),
-            # 'TimeUnit': _pull_participant('TimeUnit',fpath=fpath),
-            # 'FrequencyUnit': _pull_participant('FrequencyUnit',fpath=fpath),
+            'participant_id': 'sub-'+_pull_label(fpath, 'sub-'),
 
             # RECOMMENDED BY BIDS #
-            'species': _pull_participant('species', fpath=fpath), # default homo sapiens based on BIDS
+            'species': _pull_participant('species', fpath=fpath),  # default Homo sapiens based on BIDS
             'age': _pull_participant('age', fpath=fpath),
-            'sex': _pull_participant('sex', fpath=fpath), # 1 is male, 2 is female
+            'sex': _pull_participant('sex', fpath=fpath),  # 1 is male, 2 is female
             'handedness': _pull_participant('handedness', fpath=fpath),
             'strain': _pull_participant('strain', fpath=fpath),
             'strain_rrid': _pull_participant('strain_rrid', fpath=fpath)
         }
 
-
     def pull_task(self, fpath=None):
+        """Pull the Task label from either the SNIRF file name or from the Sidecar class (if available)
+
+            Args:
+                fpath: The file path to the reference SNIRF file
+
+            Returns:
+                The task label/name
+        """
+
         if self.sidecar.TaskName is None:
             return _pull_label(fpath, 'task-')
         else:
             return self.sidecar.TaskName
 
     def pull_fnames(self):
-        # Check directory for files (not folders), have to figure out how to do this based on the database structure
-        """
-                In the case of the test snirf file, there is no presence of:
+        """Check directory for files (not folders)
+
+        Returns:
+             A dictionary of file names for specific metadata files based on the existence of a session label
+             (different nomenclature) that are split into subject-level and session-level metadata files
+
+             subj_fnames: Contains a dictionary of metadata filenames that are on the subject level
+             ses_fnames: Contains a dictionary of metadata filenames that are on the session level
+
+        Notes:
+            Have to figure out how to do this based on the database structure
+            In the case of the test snirf file, there is no presence of:
                 1. session number
                 2. run number
-        """
+       """
         subj_fnames = None
         ses_fnames = None
         # Case of No SESSION OR RUN NUMBER
@@ -602,35 +866,36 @@ class Subject(object):
 
         return subj_fnames, ses_fnames
 
-    def load_sub_folder(self, fpath):
-        # no point in making this function currently.
-        # We would have to access directory which is not ideal for cloud purposes
-
-        # subj = dict({'nirs': {'Coordsystem': self.coordsystem.load_from_json(fpath+'/nirs/sub-'+self.subinfo.get(
-        # 'sub-')+'_coordsystem.json'), 'Optodes': self.optodes.load_from_tsv(fpath+'/nirs/sub-'+self.subinfo.get(
-        # 'sub-')+'_optodes.tsv'), 'Channels': self.channel.load_from_tsv(fpath+'/nirs/sub-'+self.subinfo.get(
-        # 'sub-')+'_channels.tsv')}, 'scans': None})
-
-        pass
-
     def load_from_snirf(self, fpath):
-        # self.subinfo = _check_empty_field(self.subinfo)
+        """Loads the metadata from a reference SNIRF file
+
+            Args:
+                fpath: The file path to the reference SNIRF file
+        """
+
         self.coordsystem.load_from_SNIRF(fpath)
         self.optodes.load_from_SNIRF(fpath)
         self.channel.load_from_SNIRF(fpath)
         self.sidecar.load_from_SNIRF(fpath)
 
-    def validate(self):
-        # Sreekanth supposedly has it
-        pass
-
     def get_subj(self):
+        """Obtains the subject ID/number for a particular 'subject'/run
+
+            Returns:
+                The subject ID/number (returns an empty string if there is no information)
+        """
+
         if self.subinfo['sub-'] is None:
             return ''
         else:
             return self.subinfo['sub-']
 
     def get_ses(self):
+        """Obtains the session ID/number for a particular 'subject'/run
+
+            Returns:
+                The session ID/number (returns an empty string if there is no information)
+        """
         if self.subinfo['ses-'] is None:
             return None
         else:
@@ -638,6 +903,20 @@ class Subject(object):
             return self.subinfo['ses-']
 
     def export(self, outputFormat: str = 'Folder', fpath: str = None):
+        """Exports/creates the BIDS-compliant metadata files based on information stored in the 'subject' class object
+
+            Args:
+                outputFormat: The target destination and indirectly, the output format of the metadata file
+                    The default value is 'Folder', which outputs the metadata file to a specific file directory
+                    specified by the user
+                    The other option is 'Text', which outputs the files and data as a string (JSON-like format)
+                fpath: The file path that points to the folder where we intend to save the metadata files in
+
+            Returns:
+                A string containing the metadata file names and its content if the user chose the 'Text' output format
+
+        """
+
         if outputFormat == 'Folder':
             self.coordsystem.save_to_json(self.subinfo, fpath)
             self.optodes.save_to_tsv(self.subinfo, fpath)
@@ -652,12 +931,25 @@ class Subject(object):
             out = json.dumps(subj)
             if fpath is None:
                 return out
-            else:
+            else:  # Will probably be changed
                 open(fpath + '/snirf.json', 'w').write(out)
                 return 0
 
 
 def snirf_to_bids(snirf: str, output: str, participants: dict = None):
+    """Creates a BIDS-compliant folder structure (right now, just the metadata files) from a SNIRF file
+
+        Args:
+            snirf: The file path to the reference SNIRF file
+            output: The file path/directory for the created BIDS metadata files
+            participants: A dictionary with participant information
+                Example:
+                    {participant_id: 'sub-01',
+                     age: 34,
+                     sex: 'M'}
+
+    """
+
     subj = Subject(snirf)
     subj.export('Folder', output)
     fname = output + '/participants.tsv'
