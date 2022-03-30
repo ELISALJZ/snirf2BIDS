@@ -57,7 +57,7 @@ def _pull_label(fpath, field):
                     # need to get rid of non-alphanumeric for task name
 
 
-def _makefiledir(info, classname, fpath):
+def _makefiledir(info, classname, fpath, sidecar = None):
     """Create the file directory for specific Metadata files
 
         Args:
@@ -73,15 +73,15 @@ def _makefiledir(info, classname, fpath):
     """
 
     if info is not None:
-        filename = _make_filename(classname, info)
-        filedir = fpath + '\\' + filename
+        filename = _make_filename(classname, info, sidecar)
+        filedir = fpath + '/' + filename
     else:
         raise ValueError("No subject info for BIDS file naming reference")
 
     return filedir
 
 
-def _make_filename(classname, info):
+def _make_filename(classname, info, sidecar):
     """Make file names based on file info
 
         Args:
@@ -106,15 +106,21 @@ def _make_filename(classname, info):
     else:
         run = '_run-' + info['run-']
 
-    if classname == 'optodes':
+    if classname == 'optodes' and sidecar is not None:
+        return subject + session + '_optodes.json'
+    elif classname == 'optodes' and sidecar is None:
         return subject + session + '_optodes.tsv'
     elif classname == 'coordsystem':
         return subject + session + '_coordsystem.json'
-    elif classname == 'events':
+    elif classname == 'events' and sidecar is not None:
+        return subject + session + task + run + '_events.json'
+    elif classname == 'events' and sidecar is None:
         return subject + session + task + run + '_events.tsv'
     elif classname == 'sidecar':
         return subject + session + task + run + '_nirs.json'
-    else:
+    elif classname == 'channels' and sidecar is not None:
+        return subject + session + task + run + '_channels.json'
+    elif classname == 'channels' and sidecar is None:
         return subject + session + task + run + '_channels.tsv'
 
 
@@ -554,6 +560,14 @@ class TSV(Metadata):
                 d[x] = {'Description': fields[x]}
         return d
 
+    def export_sidecar(self,info,fpath):
+        """Exports sidecar as a json file"""
+        classname = self.get_class_name().lower()
+        sidecar = True
+        filedir = _makefiledir(info,classname,fpath,sidecar)
+        with open(filedir, 'w') as file:
+            json.dump(self._sidecar, file, indent=4)
+
 
 class Coordsystem(JSON):
     """Coordinate System Metadata Class
@@ -953,9 +967,14 @@ class Subject(object):
         if outputFormat == 'Folder':
             self.coordsystem.save_to_json(self.subinfo, fpath)
             self.optodes.save_to_tsv(self.subinfo, fpath)
+            self.optodes.export_sidecar(self.subinfo,fpath)
             self.channel.save_to_tsv(self.subinfo, fpath)
+            self.channel.export_sidecar(self.subinfo, fpath)
             self.sidecar.save_to_json(self.subinfo, fpath)
             self.events.save_to_tsv(self.subinfo, fpath)
+            self.events.export_sidecar(self.subinfo, fpath)
+
+
         else:
             subj = {}
             if self.subinfo['ses-'] is None:
