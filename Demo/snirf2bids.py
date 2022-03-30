@@ -660,7 +660,20 @@ class Channels(TSV):
 
                 name.append(source[source_index - 1] + '-' + detector[detector_index - 1] + '-' +
                             str(wavelength[wavelength_index - 1]))
-                label.append(s.nirs[0].data[0].measurementList[i].dataTypeLabel)
+
+                if s.nirs[0].data[0].measurementList[i].dataTypeLabel is None:
+                    index = s.nirs[0].data[0].measurementList[i].dataType
+                else:
+                    index = s.nirs[0].data[0].measurementList[i].dataTypeLabel
+
+                try:
+                    temp = _getdefault('BIDS_fNIRS_measurement_type.json', str(index))
+                except TypeError:
+                    TypeError('Invalid dataTypeLabel in measurementList' + str(i))
+                else:
+                    temp = 'MISC'
+                label.append(temp)
+
                 source_list.append(source[source_index - 1])
                 detector_list.append(detector[detector_index - 1])
                 wavelength_nominal[i] = wavelength[wavelength_index - 1]
@@ -670,6 +683,8 @@ class Channels(TSV):
             self._fields['source'].value = source_list
             self._fields['detector'].value = detector_list
             self._fields['wavelength_nominal'].value = wavelength_nominal
+
+
 
 
 class Events(TSV):
@@ -795,7 +810,7 @@ class Subject(object):
         }
         self.participant = {
             # REQUIRED BY SNIRF SPECIFICATION #
-            'participant_id': 'sub-'+self.get_subj(),
+            'participant_id': 'sub-' + self.get_subj(),
 
             # RECOMMENDED BY BIDS #
             'species': _pull_participant('species', fpath=fpath),  # default Homo sapiens based on BIDS
