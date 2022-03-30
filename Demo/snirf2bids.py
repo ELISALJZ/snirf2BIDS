@@ -685,8 +685,6 @@ class Channels(TSV):
             self._fields['wavelength_nominal'].value = wavelength_nominal
 
 
-
-
 class Events(TSV):
     """Channels Metadata Class
 
