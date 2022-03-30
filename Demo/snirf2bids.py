@@ -670,7 +670,7 @@ class Channels(TSV):
                     temp = _getdefault('BIDS_fNIRS_measurement_type.json', str(index))
                 except TypeError:
                     TypeError('Invalid dataTypeLabel in measurementList' + str(i))
-                else:
+                except KeyError:
                     temp = 'MISC'
                 label.append(temp)
 
