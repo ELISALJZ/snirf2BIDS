@@ -81,7 +81,7 @@ def _makefiledir(info, classname, fpath, sidecar = None):
     return filedir
 
 
-def _make_filename(classname, info, sidecar):
+def _make_filename(classname, info, parameter):
     """Make file names based on file info
 
         Args:
@@ -106,22 +106,26 @@ def _make_filename(classname, info, sidecar):
     else:
         run = '_run-' + info['run-']
 
-    if classname == 'optodes' and sidecar is not None:
+    if classname == 'optodes' and parameter == 'sidecar':
         return subject + session + '_optodes.json'
-    elif classname == 'optodes' and sidecar is None:
+    elif classname == 'optodes' and parameter is None:
         return subject + session + '_optodes.tsv'
     elif classname == 'coordsystem':
         return subject + session + '_coordsystem.json'
-    elif classname == 'events' and sidecar is not None:
+    elif classname == 'events' and parameter == 'sidecar':
         return subject + session + task + run + '_events.json'
-    elif classname == 'events' and sidecar is None:
+    elif classname == 'events' and parameter is None:
         return subject + session + task + run + '_events.tsv'
     elif classname == 'sidecar':
         return subject + session + task + run + '_nirs.json'
-    elif classname == 'channels' and sidecar is not None:
+    elif classname == 'channels' and parameter == 'sidecar':
         return subject + session + task + run + '_channels.json'
-    elif classname == 'channels' and sidecar is None:
+    elif classname == 'channels' and parameter is None:
         return subject + session + task + run + '_channels.tsv'
+    elif classname == 'scans' and parameter is None:
+        return subject + session + task + run + '_scans.tsv'
+    elif classname == 'scans' and parameter == 'init':
+        return subject + session + task + run
 
 
 def _pull_participant(field, fpath=None):
@@ -154,6 +158,39 @@ def _pull_participant(field, fpath=None):
         value = 'homo sapiens'
 
     return value
+
+
+def _pull_scans(info, field, fpath=None):
+    if fpath is None:
+        return None
+    else:
+        if field == 'filename':
+            return 'nirs/' + _make_filename('scans', info, 'init') + '.snirf'
+        elif field == 'acq_time':
+            with Snirf(fpath) as s:
+                date = s.nirs[0].metaDataTags.MeasurementDate
+                time = s.nirs[0].metaDataTags.MeasurementTime
+                hour_minute_second = time[:8]
+                if '.' in time:
+                    for x in time[::-1]:
+                        if x.isdigit() or x == ':':
+                            pass
+                        else:
+                            position = time.find(x)
+                            zone = '[' + time[position::] + ']'
+                            decimal = '[' + time[8:position] + ']'
+                            break
+                else:
+                    for x in time[::-1]:
+                        if x.isdigit() or x == ':':
+                            pass
+                        else:
+                            position = time.find(x)
+                            zone = '[' + time[position::] + ']'
+                            decimal = ''
+                            break
+
+            return date + 'T' + hour_minute_second + decimal + zone
 
 # I dont think we need _check_empty_fields anymore since we agreed on rejecting things without correct names...
 # Maybe we can repurpose it to make it into a error detector?
@@ -563,7 +600,7 @@ class TSV(Metadata):
     def export_sidecar(self,info,fpath):
         """Exports sidecar as a json file"""
         classname = self.get_class_name().lower()
-        sidecar = True
+        sidecar = 'sidecar'
         filedir = _makefiledir(info,classname,fpath,sidecar)
         with open(filedir, 'w') as file:
             json.dump(self._sidecar, file, indent=4)
@@ -833,7 +870,6 @@ class Subject(object):
         self.channel = Channels(fpath=fpath)
         self.sidecar = Sidecar(fpath=fpath)
         self.events = Events(fpath=fpath)
-
         self.subinfo = {
             'sub-': _pull_label(fpath, 'sub-'),
             'ses-': _pull_label(fpath, 'ses-'),
@@ -852,6 +888,11 @@ class Subject(object):
             'strain': _pull_participant('strain', fpath=fpath),
             'strain_rrid': _pull_participant('strain_rrid', fpath=fpath)
         }
+        self.scans = {
+            'filename': _pull_scans(self.subinfo,'filename',fpath=fpath),
+            'acq_time': _pull_scans(self.subinfo,'acq_time', fpath=fpath)
+        }
+
 
     def pull_task(self, fpath=None):
         """Pull the Task label from either the SNIRF file name or from the Sidecar class (if available)
@@ -948,6 +989,8 @@ class Subject(object):
         else:
             # Pull out the sessions here with a function
             return self.subinfo['ses-']
+
+
 
     def export(self, outputFormat: str = 'Folder', fpath: str = None):
         """Exports/creates the BIDS-compliant metadata files based on information stored in the 'subject' class object
