@@ -122,8 +122,6 @@ def _make_filename(classname, info, parameter):
         return subject + session + task + run + '_channels.json'
     elif classname == 'channels' and parameter is None:
         return subject + session + task + run + '_channels.tsv'
-    elif classname == 'scans' and parameter is None:
-        return subject + session + task + run + '_scans.tsv'
     elif classname == 'scans' and parameter == 'init':
         return subject + session + task + run
 
@@ -1031,7 +1029,7 @@ class Subject(object):
                 return 0
 
 
-def snirf_to_bids(snirf: str, output: str, participants: dict = None):
+def snirf_to_bids(snirf: str, output: str, participants: dict = None, scans: dict = None):
     """Creates a BIDS-compliant folder structure (right now, just the metadata files) from a SNIRF file
 
             Args:
@@ -1059,3 +1057,16 @@ def snirf_to_bids(snirf: str, output: str, participants: dict = None):
             writer = csv.DictWriter(f, fieldnames=list(participants.keys()), delimiter="\t", quotechar='"')
             writer.writeheader()
             writer.writerow(participants)
+
+
+    # same thing as participants for scans
+    fname = output + '/scans.tsv'
+    with open(fname, 'w', newline='') as f:
+        if scans is None:
+            writer = csv.DictWriter(f, fieldnames=list(subj.scans.keys()), delimiter="\t", quotechar='"')
+            writer.writeheader()
+            writer.writerow({'filename': 'nirs/' + subj.scans['filename']})
+        else:
+            writer = csv.DictWriter(f, fieldnames=list(scans.keys()), delimiter="\t", quotechar='"')
+            writer.writeheader()
+            writer.writerow(scans)
