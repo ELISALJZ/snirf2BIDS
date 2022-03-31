@@ -170,8 +170,8 @@ def _pull_scans(info, field, fpath=None):
                 time = s.nirs[0].metaDataTags.MeasurementTime
                 hour_minute_second = time[:8]
                 if '.' in time:
-                    for x in time[::-1]:
-                        if x.isdigit() or x == ':':
+                    for x in time[8:]:
+                        if x.isdigit() or x == '.':
                             pass
                         else:
                             position = time.find(x)
@@ -179,8 +179,8 @@ def _pull_scans(info, field, fpath=None):
                             decimal = '[' + time[8:position] + ']'
                             break
                 else:
-                    for x in time[::-1]:
-                        if x.isdigit() or x == ':':
+                    for x in time[8:]:
+                        if x.isdigit():
                             pass
                         else:
                             position = time.find(x)
