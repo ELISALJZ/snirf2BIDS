@@ -3,8 +3,6 @@ import numpy as np
 import json
 from pysnirf2 import Snirf
 import csv
-import warnings
-
 
 def _getdefault(fpath, key):
     """Get the fields and values/descriptions for a specific Metadata file from a JSON file.
@@ -31,7 +29,7 @@ def _getdefault(fpath, key):
 
 
 def _pull_label(fpath, field):
-    """Pull information values from filename. If file name is not BIDS compliant, reject the file and print error
+    """Pull information values from filename if it is BIDS compliant
 
         Args:
             fpath: The filepath to the SNIRF file of reference
@@ -44,10 +42,9 @@ def _pull_label(fpath, field):
     if fpath is None:
         return None
     fname = fpath.split('/')[-1]
-    if field not in fname and field == 'sub-':
-        raise TypeError('Subject label is REQUIRED in file name')
-    elif field not in fname and field == 'task-':
-        raise TypeError('Task label is REQUIRED in file name')
+    if field not in fname:
+        # if the info is not even mentioned in the file name
+        return None
     else:
         # if it is mentioned in the filename
         info = fname.split('_')
@@ -162,18 +159,6 @@ def _pull_participant(field, fpath=None):
 
 
 def _pull_scans(info, field, fpath=None):
-    """
-    Creates the scans.tsv file
-        Only works for a single SNIRF file for now with a predefined set of fields
-
-        :param:
-            info: subject information field (Subject.subinfo)
-            field: field within scans.tsv file (filename or acq_time)
-            fpath: file path of snirf file to extract scans.tsv from. OPTIONAL
-
-        :return:
-            the string of the requested field parameter extracted from the snirf in fpath
-    """
     if fpath is None:
         return None
     else:
@@ -204,6 +189,35 @@ def _pull_scans(info, field, fpath=None):
                             break
 
             return date + 'T' + hour_minute_second + decimal + zone
+
+# I dont think we need _check_empty_fields anymore since we agreed on rejecting things without correct names...
+# Maybe we can repurpose it to make it into a error detector?
+def _check_empty_field(info):
+    # Check empty fields to make sure required is filled, and optional is filled if wanted by user.
+    for i in list(info.keys()):
+        if i == 'sub-' and info[i] is None:
+            print('Subject number is REQUIRED. Please input subject number: ')
+            info[i] = input()
+        elif i == 'task-' and info[i] is None:
+            print('Task name is REQUIRED. Please input task name: ')
+            info[i] = input()
+        elif i == 'ses-' and info[i] is None:
+            print('Session number is OPTIONAL. Would you like to input a number?: [y/n]')
+            ans = input()
+            if ans == 'y':
+                print('Please input session number: ')
+                info[i] = input()
+            else:
+                pass
+        elif i == 'run-' and info[i] is None:
+            print('Run number is OPTIONAL. Would you like to input a number?: [y/n]')
+            ans = input()
+            if ans == 'y':
+                print('Please input session number: ')
+                info[i] = input()
+            else:
+                pass
+    return info
 
 
 class Field:
@@ -877,6 +891,7 @@ class Subject(object):
             'acq_time': _pull_scans(self.subinfo,'acq_time', fpath=fpath)
         }
 
+
     def pull_task(self, fpath=None):
         """Pull the Task label from either the SNIRF file name or from the Sidecar class (if available)
 
@@ -972,6 +987,8 @@ class Subject(object):
         else:
             # Pull out the sessions here with a function
             return self.subinfo['ses-']
+
+
 
     def export(self, outputFormat: str = 'Folder', fpath: str = None):
         """Exports/creates the BIDS-compliant metadata files based on information stored in the 'subject' class object
