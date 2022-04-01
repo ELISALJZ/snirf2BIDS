@@ -703,7 +703,7 @@ class Channels(TSV):
             name = []
             source_list = []
             detector_list = []
-            label = []
+            ctype = []
             wavelength_nominal = np.zeros(len(s.nirs[0].data[0].measurementList))
 
             for i in range(len(s.nirs[0].data[0].measurementList)):
@@ -725,14 +725,30 @@ class Channels(TSV):
                     TypeError('Invalid dataTypeLabel in measurementList' + str(i))
                 except KeyError:
                     temp = 'MISC'
-                label.append(temp)
+                ctype.append(temp)
 
                 source_list.append(source[source_index - 1])
                 detector_list.append(detector[detector_index - 1])
                 wavelength_nominal[i] = wavelength[wavelength_index - 1]
 
+            if len(s.nirs[0].aux) > 0:
+                for j in range(len(s.nirs[0].aux)):
+                    temp = s.nirs[0].aux[j].name
+                    name.append(temp)
+                    if "ACCEL" in temp:
+                        ctype.append("ACCEL")
+                    elif "GYRO" in temp:
+                        ctype.append("GYRO")
+                    elif "MAGN" in temp:
+                        ctype.append("MAGN")
+                    else:
+                        ctype.append("MISC")
+                    source_list.append("NaN")
+                    detector_list.append("NaN")
+                    wavelength_nominal[-1 + j] = float("NaN")
+
             self._fields['name'].value = np.array(name)
-            self._fields['type'].value = label
+            self._fields['type'].value = ctype
             self._fields['source'].value = source_list
             self._fields['detector'].value = detector_list
             self._fields['wavelength_nominal'].value = wavelength_nominal
