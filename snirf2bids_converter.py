@@ -82,7 +82,7 @@ def _makefiledir(info, classname, fpath, sidecar = None):
     return filedir
 
 
-def _make_filename(classname, info, parameter):
+def _make_filename(classname, info, parameter=None):
     """Make file names based on file info
 
         Args:
@@ -413,7 +413,7 @@ class Metadata:
             Returns:
                 The value of a specified field/'column' - similar to __getattr__
         """
-        self.__getattr__(name)
+        return self.__getattr__(name)
 
     def get_column_names(self):
         """Get the names of the field in a specific metadata class/file that has a value(s)
@@ -732,6 +732,8 @@ class Channels(TSV):
                 wavelength_nominal[i] = wavelength[wavelength_index - 1]
 
             if len(s.nirs[0].aux) > 0:
+                append_nominal = np.empty((1,len(s.nirs[0].aux)))
+                append_nominal[:] = np.NaN
                 for j in range(len(s.nirs[0].aux)):
                     temp = s.nirs[0].aux[j].name
                     name.append(temp)
@@ -745,13 +747,12 @@ class Channels(TSV):
                         ctype.append("MISC")
                     source_list.append("NaN")
                     detector_list.append("NaN")
-                    wavelength_nominal[-1 + j] = float("NaN")
 
             self._fields['name'].value = np.array(name)
-            self._fields['type'].value = ctype
-            self._fields['source'].value = source_list
-            self._fields['detector'].value = detector_list
-            self._fields['wavelength_nominal'].value = wavelength_nominal
+            self._fields['type'].value = np.array(ctype)
+            self._fields['source'].value = np.array(source_list)
+            self._fields['detector'].value = np.array(detector_list)
+            self._fields['wavelength_nominal'].value = np.append(wavelength_nominal,append_nominal)
 
 
 class Events(TSV):
@@ -1011,8 +1012,7 @@ class Subject(object):
             self.sidecar.save_to_json(self.subinfo, fpath)
             self.events.save_to_tsv(self.subinfo, fpath)
             self.events.export_sidecar(self.subinfo, fpath)
-
-
+            return 0
         else:
             subj = {}
             if self.subinfo['ses-'] is None:
@@ -1026,7 +1026,7 @@ class Subject(object):
                 return 0
 
 
-def snirf_to_bids(snirf: str, output: str, participants: dict = None, scans: dict = None):
+def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None, scans: dict = None):
     """Creates a BIDS-compliant folder structure (right now, just the metadata files) from a SNIRF file
 
             Args:
@@ -1040,8 +1040,8 @@ def snirf_to_bids(snirf: str, output: str, participants: dict = None, scans: dic
 
         """
 
-    subj = Subject(snirf)
-    subj.export('Folder', output)
+    subj = Subject(inputpath)
+    subj.export('Folder', outputpath)
     fname = output + '/participants.tsv'
 
     # This will probably work only with a single SNIRF file for now
