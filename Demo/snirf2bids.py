@@ -6,14 +6,15 @@ import csv
 
 
 def _getdefault(fpath, key):
-    """Get the fields and values/descriptions for a specific Metadata file from a JSON file.
+    """Get the fields/keys and corresponding values/descriptions from a JSON file.
 
         Args:
             fpath: The filepath to the JSON file containing the list of default fields (in string)
-            key: The specific Metadata file extension such as _nirs.json, _optodes.tsv, etc.
+            key: The specific Metadata file extension such as _nirs.json, _optodes.tsv, etc. or specific key/field
+                 declared within the dictionary in the JSON file.
 
         Returns:
-            The default fields for the specified Metadata file in a dictionary format.
+            The dictionary stored within the specific key/field.
             Example output for _coordsystem.json from BIDS_fNIRS_subject_folder.JSON:
                 {'RequirementLevel': 'CONDITIONAL',
                  'NIRSCoordinateSystem': 'REQUIRED',
@@ -23,6 +24,7 @@ def _getdefault(fpath, key):
                  ...
                  'FiducialsDescription': 'OPTIONAL'}
     """
+
     file = open(fpath)
     fields = json.load(file)
 
@@ -37,7 +39,7 @@ def _pull_label(fpath, field):
             field: The specific participant information field inquired (subject/session/run/task)
 
         Returns:
-            The label for the specified field
+            The label for the specified field or None if the specific field cannot be found in the filename
     """
 
     if fpath is None:
@@ -120,7 +122,7 @@ def _make_filename(classname, info):
 
 
 def _pull_participant(field, fpath=None):
-    """Creates the participants.tsv file (minimum functionality)
+    """Obtains the value for specific fields in the participants.tsv file (minimum functionality)
 
         Only works for a single SNIRF file for now with a predefined set of fields
 
@@ -129,7 +131,7 @@ def _pull_participant(field, fpath=None):
             fpath: The file path that points to the folder where we intend to save the metadata file in
 
         Returns:
-            The full directory path for the specific metadata file (in string)
+            The value for the specific field/column specified in string
     """
 
     if fpath is not None:
@@ -159,14 +161,20 @@ class Field:
     """
 
     def __init__(self, val):
+        """Generic constructor for a Field class
+
+            It stores a specific value declared in the class initialization in _value
+        """
         self._value = val
 
     @property
     def value(self):
+        """Value Getter for Field class"""
         return self._value
 
     @value.setter
     def value(self, val):
+        """Value Setter for Field class"""
         self._value = val
 
 
@@ -179,15 +187,21 @@ class String(Field):
     """
 
     def __init__(self, val):
+        """Generic constructor for a String Field class inherited from the Field class
+
+            Additionally, it stores the datatype which in this case, it is string
+        """
         super().__init__(val)
         self.type = str
 
     @staticmethod
     def validate(val):
+        """Datatype Validation function for String class"""
         if type(val) is str or val is None:
             return True
 
     def get_type(self):
+        """Datatype getter for the String class"""
         return self.type
 
 
@@ -200,15 +214,21 @@ class Number(Field):
     """
 
     def __init__(self, val):
+        """Generic constructor for a Number Field class inherited from the Field class
+
+            Additionally, it stores the datatype which in this case, it is integer
+        """
         super().__init__(val)
         self.type = int
 
     @staticmethod
     def validate(val):
+        """Datatype Validation function for Number class"""
         if type(val) is not str or val is None:
             return True
 
     def get_type(self):
+        """Datatype getter for the Number class"""
         return self.type
 
 
@@ -225,7 +245,7 @@ class Metadata:
     def __init__(self):
         """Generic constructor for a Metadata class
 
-        Most importantly, it constructs the default fields with empty values
+        Most importantly, it constructs the default fields with empty values within _fields in a dictionary format
         """
         default_list, default_type = self.default_fields()
         default = {'path2origin': String(None)}
@@ -927,7 +947,7 @@ class Subject(object):
 
             Returns:
                 A string containing the metadata file names and its content if the user chose the 'Text' output format
-
+                or a set of metadata files in a specified folder if the user chose the default or 'Folder' output format
         """
 
         if outputFormat == 'Folder':
