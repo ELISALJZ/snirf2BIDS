@@ -3,6 +3,7 @@ import numpy as np
 import json
 from pysnirf2 import Snirf
 import csv
+import warnings
 
 
 def _getdefault(fpath, key):
@@ -46,9 +47,9 @@ def _pull_label(fpath, field):
         return None
     fname = fpath.split('/')[-1]
     if field not in fname and field == 'sub-':
-        raise TypeError('Subject label is REQUIRED in file name')
+        raise ValueError('Subject label is REQUIRED in file name')
     elif field not in fname and field == 'task-':
-        raise TypeError('Task label is REQUIRED in file name')
+        raise ValueError('Task label is REQUIRED in file name')
     else:
         # if it is mentioned in the filename
         info = fname.split('_')
@@ -207,6 +208,31 @@ def _pull_scans(info, field, fpath=None):
                             break
 
             return date + 'T' + hour_minute_second + decimal + zone
+
+
+def _compliancy_check(bids):
+    """Checks the BIDS compliancy by checking the values of required field. Prints Warning of anything is missing.
+    Args:
+        bids: Subject class object that is trying to be exported
+    """
+    subj_object = bids.__dict__.keys()
+    for x in subj_object:
+        if x in ['channel', 'coordsystem', 'events', 'optodes', 'sidecar']:
+            class_spec = bids.__dict__[x].default_fields()[0]
+            for field in class_spec.keys():
+                if class_spec[field] == 'REQUIRED' and bids.__dict__[x]._fields[field].value is None:
+                    message = 'FATAL: The field ' + field + ' is REQUIRED in the ' + x.capitalize() + ' class'
+                    warnings.warn(message)
+        elif x in ['subinfo']:
+            pass
+        elif x in ['participants', 'scans']:
+            class_spec = _getdefault('BIDS_fNIRS_subject_folder.json',x+'.tsv')
+            for field in class_spec.keys():
+                if class_spec[field] == 'REQUIRED' and field not in bids.__dict__[x]:
+                    message = 'FATAL: The field ' + field + 'is REQUIRED in ' + x.capitalize()
+                    warnings.warn(message)
+        else:
+            raise ValueError('There is an invalid field ' + x + ' within your BIDS object')
 
 
 class Field:
@@ -898,7 +924,7 @@ class Subject(object):
             'task-': self.pull_task(fpath),
             'run-': _pull_label(fpath, 'run-')
         }
-        self.participant = {
+        self.participants = {
             # REQUIRED BY SNIRF SPECIFICATION #
             'participant_id': 'sub-' + self.get_subj(),
 
@@ -1049,7 +1075,7 @@ class Subject(object):
                 return 0
 
 
-def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None, scans: dict = None):
+def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None):
     """Creates a BIDS-compliant folder structure (right now, just the metadata files) from a SNIRF file
 
         Args:
@@ -1064,13 +1090,14 @@ def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None, sc
     """
 
     subj = Subject(inputpath)
+    _compliancy_check(subj)
     subj.export('Folder', outputpath)
+    
     fname = outputpath + '/participants.tsv'
-
     # This will probably work only with a single SNIRF file for now
     with open(fname, 'w', newline='') as f:
         if participants is None:
-            writer = csv.DictWriter(f, fieldnames=list(subj.participant.keys()), delimiter="\t", quotechar='"')
+            writer = csv.DictWriter(f, fieldnames=list(subj.participants.keys()), delimiter="\t", quotechar='"')
             writer.writeheader()
             writer.writerow({'participant_id': 'sub-' + subj.get_subj()})
         else:
@@ -1078,14 +1105,11 @@ def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None, sc
             writer.writeheader()
             writer.writerow(participants)
 
+    # scans.tsv output
     # same thing as participants for scans
     fname = outputpath + '/scans.tsv'
     with open(fname, 'w', newline='') as f:
-        if scans is None:
-            writer = csv.DictWriter(f, fieldnames=list(subj.scans.keys()), delimiter="\t", quotechar='"')
-            writer.writeheader()
-            writer.writerow({'filename': 'nirs/' + subj.scans['filename']})
-        else:
-            writer = csv.DictWriter(f, fieldnames=list(scans.keys()), delimiter="\t", quotechar='"')
-            writer.writeheader()
-            writer.writerow(scans)
+        writer = csv.DictWriter(f, fieldnames=list(subj.scans.keys()), delimiter="\t", quotechar='"')
+        writer.writeheader()
+        writer.writerow({'filename':  subj.scans['filename'], 'acq_time': subj.scans['acq_time']})
+
