@@ -610,6 +610,17 @@ class TSV(Metadata):
         with open(filedir, 'w') as file:
             json.dump(self._sidecar, file, indent=4)
 
+    def load_sidecar(self, fpath):
+        """Create a JSON sidecar class from a JSON sidecar file
+
+            Args:
+                fpath: The file path to the reference JSON file
+        """
+        with open(fpath) as file:
+            dic = json.load(file)
+
+        self._sidecar = dic
+
 
 class Coordsystem(JSON):
     """Coordinate System Metadata Class
@@ -754,9 +765,10 @@ class Channels(TSV):
                 detector_list.append(detector[detector_index - 1])
                 wavelength_nominal[i] = wavelength[wavelength_index - 1]
 
+            append_nominal = np.empty((1, len(s.nirs[0].aux)))
+            append_nominal[:] = np.NaN
+
             if len(s.nirs[0].aux) > 0:
-                append_nominal = np.empty((1, len(s.nirs[0].aux)))
-                append_nominal[:] = np.NaN
                 for j in range(len(s.nirs[0].aux)):
                     temp = s.nirs[0].aux[j].name
                     name.append(temp)
