@@ -1026,7 +1026,7 @@ class Subject(object):
                 return 0
 
 
-def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None, scans: dict = None):
+def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None):
     """Creates a BIDS-compliant folder structure (right now, just the metadata files) from a SNIRF file
 
             Args:
@@ -1042,7 +1042,7 @@ def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None, sc
 
     subj = Subject(inputpath)
     subj.export('Folder', outputpath)
-    fname = output + '/participants.tsv'
+    fname = outputpath + '/participants.tsv'
 
     # This will probably work only with a single SNIRF file for now
     with open(fname, 'w', newline='') as f:
@@ -1056,14 +1056,9 @@ def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None, sc
             writer.writerow(participants)
 
 
-    # same thing as participants for scans
-    fname = output + '/scans.tsv'
+    # scans.tsv output
+    fname = outputpath + '/scans.tsv'
     with open(fname, 'w', newline='') as f:
-        if scans is None:
-            writer = csv.DictWriter(f, fieldnames=list(subj.scans.keys()), delimiter="\t", quotechar='"')
-            writer.writeheader()
-            writer.writerow({'filename': 'nirs/' + subj.scans['filename']})
-        else:
-            writer = csv.DictWriter(f, fieldnames=list(scans.keys()), delimiter="\t", quotechar='"')
-            writer.writeheader()
-            writer.writerow(scans)
+        writer = csv.DictWriter(f, fieldnames=list(subj.scans.keys()), delimiter="\t", quotechar='"')
+        writer.writeheader()
+        writer.writerow({'filename':  subj.scans['filename'], 'acq_time': subj.scans['acq_time']})
