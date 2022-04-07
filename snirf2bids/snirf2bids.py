@@ -1,9 +1,19 @@
-# To convert a given folder containing snirf files to BIDS folder directory with necessary files
+""" Module for converting snirf file into bids format
+
+Maintained by the Boston University Neurophotonics Center
+"""
+
 import numpy as np
 import json
 from pysnirf2 import Snirf
+from warnings import warn
 import csv
 
+try:
+    from snirf2bids.__version__ import __version__ as __version__
+except Exception:
+    warn('Failed to load snirf2bids library version')
+    __version__ = '0.0.0'
 
 def _getdefault(fpath, key):
     """Get the fields/keys and corresponding values/descriptions from a JSON file.
@@ -24,8 +34,7 @@ def _getdefault(fpath, key):
                  ...
                  'FiducialsDescription': 'OPTIONAL'}
     """
-
-    file = open(fpath)
+    file = open('defaults/' + fpath)
     fields = json.load(file)
 
     return fields[key]
@@ -45,9 +54,10 @@ def _pull_label(fpath, field):
     if fpath is None:
         return None
     fname = fpath.split('/')[-1]
-    if field not in fname:
-        # if the info is not even mentioned in the file name
-        return None
+    if field not in fname and field == 'sub-':
+        raise ValueError('Subject label is REQUIRED in file name')
+    elif field not in fname and field == 'task-':
+        raise ValueError('Task label is REQUIRED in file name')
     else:
         # if it is mentioned in the filename
         info = fname.split('_')
@@ -60,7 +70,7 @@ def _pull_label(fpath, field):
                     # need to get rid of non-alphanumeric for task name
 
 
-def _makefiledir(info, classname, fpath):
+def _makefiledir(info, classname, fpath, sidecar=None):
     """Create the file directory for specific Metadata files
 
         Args:
@@ -76,20 +86,21 @@ def _makefiledir(info, classname, fpath):
     """
 
     if info is not None:
-        filename = _make_filename(classname, info)
-        filedir = fpath + '\\' + filename
+        filename = _make_filename(classname, info, sidecar)
+        filedir = fpath + '/' + filename
     else:
         raise ValueError("No subject info for BIDS file naming reference")
 
     return filedir
 
 
-def _make_filename(classname, info):
+def _make_filename(classname, info, parameter=None):
     """Make file names based on file info
 
         Args:
             classname: The specific metadata class name (coordsystem, optodes, etc.)
             info: Subject info field from the Subject class
+            parameter: Enter 'sidecar' when creating a TSV-accompanying sidecar file
 
         Returns:
             A BIDS formatted file name for the specific metadata file (in string)
@@ -109,16 +120,24 @@ def _make_filename(classname, info):
     else:
         run = '_run-' + info['run-']
 
-    if classname == 'optodes':
+    if classname == 'optodes' and parameter == 'sidecar':
+        return subject + session + '_optodes.json'
+    elif classname == 'optodes' and parameter is None:
         return subject + session + '_optodes.tsv'
     elif classname == 'coordsystem':
         return subject + session + '_coordsystem.json'
-    elif classname == 'events':
+    elif classname == 'events' and parameter == 'sidecar':
+        return subject + session + task + run + '_events.json'
+    elif classname == 'events' and parameter is None:
         return subject + session + task + run + '_events.tsv'
     elif classname == 'sidecar':
         return subject + session + task + run + '_nirs.json'
-    else:
+    elif classname == 'channels' and parameter == 'sidecar':
+        return subject + session + task + run + '_channels.json'
+    elif classname == 'channels' and parameter is None:
         return subject + session + task + run + '_channels.tsv'
+    elif classname == 'scans' and parameter == 'init':
+        return subject + session + task + run
 
 
 def _pull_participant(field, fpath=None):
@@ -153,6 +172,74 @@ def _pull_participant(field, fpath=None):
     return value
 
 
+def _pull_scans(info, field, fpath=None):
+    """Creates the scans.tsv file
+
+        Only works for a single SNIRF file for now with a predefined set of fields
+
+        Args:
+            info: subject information field (Subject.subinfo)
+            field: field within scans.tsv file (filename or acq_time)
+            fpath: file path of snirf file to extract scans.tsv from. OPTIONAL
+
+        Returns:
+            the string of the requested field parameter extracted from the snirf in fpath
+    """
+    if fpath is None:
+        return None
+    else:
+        if field == 'filename':
+            return 'nirs/' + _make_filename('scans', info, 'init') + '.snirf'
+        elif field == 'acq_time':
+            with Snirf(fpath) as s:
+                date = s.nirs[0].metaDataTags.MeasurementDate
+                time = s.nirs[0].metaDataTags.MeasurementTime
+                hour_minute_second = time[:8]
+                if '.' in time:
+                    for x in time[8:]:
+                        if x.isdigit() or x == '.':
+                            pass
+                        else:
+                            position = time.find(x)
+                            zone = '[' + time[position::] + ']'
+                            decimal = '[' + time[8:position] + ']'
+                            break
+                else:
+                    for x in time[8:]:
+                        if x.isdigit():
+                            pass
+                        else:
+                            position = time.find(x)
+                            zone = '[' + time[position::] + ']'
+                            decimal = ''
+                            break
+
+            return date + 'T' + hour_minute_second + decimal + zone
+
+def _compliancy_check(bids):
+    """Checks the BIDS compliancy by checking the values of required field. Prints Warning of anything is missing.
+    Args:
+        bids: Subject class object that is trying to be exported
+    """
+    subj_object = bids.__dict__.keys()
+    for x in subj_object:
+        if x in ['channel', 'coordsystem', 'events', 'optodes', 'sidecar']:
+            class_spec = bids.__dict__[x].default_fields()[0]
+            for field in class_spec.keys():
+                if class_spec[field] == 'REQUIRED' and bids.__dict__[x]._fields[field].value is None:
+                    message = 'FATAL: The field ' + field + ' is REQUIRED in the ' + x.capitalize() + ' class'
+                    warn(message)
+        elif x in ['subinfo']:
+            pass
+        elif x in ['participants', 'scans']:
+            class_spec = _getdefault('BIDS_fNIRS_subject_folder.json',x+'.tsv')
+            for field in class_spec.keys():
+                if class_spec[field] == 'REQUIRED' and field not in bids.__dict__[x]:
+                    message = 'FATAL: The field ' + field + 'is REQUIRED in ' + x.capitalize()
+                    warn(message)
+        else:
+            raise ValueError('There is an invalid field ' + x + ' within your BIDS object')
+
 class Field:
     """Class which encapsulates fields inside a Metadata class
 
@@ -163,7 +250,7 @@ class Field:
     def __init__(self, val):
         """Generic constructor for a Field class
 
-            It stores a specific value declared in the class initialization in _value
+        It stores a specific value declared in the class initialization in _value
         """
         self._value = val
 
@@ -380,7 +467,7 @@ class Metadata:
             Returns:
                 The value of a specified field/'column' - similar to __getattr__
         """
-        self.__getattr__(name)
+        return self.__getattr__(name)
 
     def get_column_names(self):
         """Get the names of the field in a specific metadata class/file that has a value(s)
@@ -533,26 +620,26 @@ class TSV(Metadata):
             self._fields[onename].value = rows[1:, i]
 
     def make_sidecar(self):
-        """Allocates an empty dictionary with the correct field names inside the Sidecar file
+        """Makes a dictionary with the default description noted in BIDS specification into the Sidecar dictionary
 
         Returns:
-            An empty dictionary with the correct fields (that have values) for a specific TSV metadata file
+            Dictionary with correct fields(that have values) with description of each field within TSV file filled out
         """
-
         keylist = list(self.get_column_names())
-        d = {}
-        for i in keylist:
-            d[i] = None
+        d = dict.fromkeys(keylist)
+        fields = _getdefault('BIDS_fNIRS_sidecar_files.json', self.get_class_name().lower())
+        for x in keylist:
+            if d[x] is None:
+                d[x] = {'Description': fields[x]}
         return d
 
-    def fill_default_sidecar(self):
-        """Puts the default description noted in BIDS specification into the Sidecar dictionary"""
-
-        fields = _getdefault('BIDS_fNIRS_sidecar_files.json', self.get_class_name().lower())
-        sidecar_keys = list(self._sidecar.keys())
-        for x in sidecar_keys:
-            if self._sidecar[x] is None:
-                self._sidecar[x] = fields[x]
+    def export_sidecar(self, info, fpath):
+        """Exports sidecar as a json file"""
+        classname = self.get_class_name().lower()
+        sidecar = 'sidecar'
+        filedir = _makefiledir(info, classname, fpath, sidecar)
+        with open(filedir, 'w') as file:
+            json.dump(self._sidecar, file, indent=4)
 
 
 class Coordsystem(JSON):
@@ -698,11 +785,28 @@ class Channels(TSV):
                 detector_list.append(detector[detector_index - 1])
                 wavelength_nominal[i] = wavelength[wavelength_index - 1]
 
+            if len(s.nirs[0].aux) > 0:
+                append_nominal = np.empty((1, len(s.nirs[0].aux)))
+                append_nominal[:] = np.NaN
+                for j in range(len(s.nirs[0].aux)):
+                    temp = s.nirs[0].aux[j].name
+                    name.append(temp)
+                    if "ACCEL" in temp:
+                        ctype.append("ACCEL")
+                    elif "GYRO" in temp:
+                        ctype.append("GYRO")
+                    elif "MAGN" in temp:
+                        ctype.append("MAGN")
+                    else:
+                        ctype.append("MISC")
+                    source_list.append("NaN")
+                    detector_list.append("NaN")
+
             self._fields['name'].value = np.array(name)
-            self._fields['type'].value = ctype
-            self._fields['source'].value = source_list
-            self._fields['detector'].value = detector_list
-            self._fields['wavelength_nominal'].value = wavelength_nominal
+            self._fields['type'].value = np.array(ctype)
+            self._fields['source'].value = np.array(source_list)
+            self._fields['detector'].value = np.array(detector_list)
+            self._fields['wavelength_nominal'].value = np.append(wavelength_nominal, append_nominal)
 
 
 class Events(TSV):
@@ -807,7 +911,7 @@ class Subject(object):
         sidecar: Contains a Sidecar (_nirs.JSON) class object for a specific 'subject'/run
         events: Contains an Events class object for a specific 'subject'/run
         subinfo: Contains the 'subject'/run information related to the data stored in a 'Subject' object
-        participant: Contains the metadata related to the participants.tsv file
+        participants: Contains the metadata related to the participants.tsv file
 
     """
 
@@ -819,14 +923,13 @@ class Subject(object):
         self.channel = Channels(fpath=fpath)
         self.sidecar = Sidecar(fpath=fpath)
         self.events = Events(fpath=fpath)
-
         self.subinfo = {
             'sub-': _pull_label(fpath, 'sub-'),
             'ses-': _pull_label(fpath, 'ses-'),
             'task-': self.pull_task(fpath),
             'run-': _pull_label(fpath, 'run-')
         }
-        self.participant = {
+        self.participants = {
             # REQUIRED BY SNIRF SPECIFICATION #
             'participant_id': 'sub-' + self.get_subj(),
 
@@ -837,6 +940,10 @@ class Subject(object):
             'handedness': _pull_participant('handedness', fpath=fpath),
             'strain': _pull_participant('strain', fpath=fpath),
             'strain_rrid': _pull_participant('strain_rrid', fpath=fpath)
+        }
+        self.scans = {
+            'filename': _pull_scans(self.subinfo, 'filename', fpath=fpath),
+            'acq_time': _pull_scans(self.subinfo, 'acq_time', fpath=fpath)
         }
 
     def pull_task(self, fpath=None):
@@ -953,9 +1060,13 @@ class Subject(object):
         if outputFormat == 'Folder':
             self.coordsystem.save_to_json(self.subinfo, fpath)
             self.optodes.save_to_tsv(self.subinfo, fpath)
+            self.optodes.export_sidecar(self.subinfo, fpath)
             self.channel.save_to_tsv(self.subinfo, fpath)
+            self.channel.export_sidecar(self.subinfo, fpath)
             self.sidecar.save_to_json(self.subinfo, fpath)
             self.events.save_to_tsv(self.subinfo, fpath)
+            self.events.export_sidecar(self.subinfo, fpath)
+            return 0
         else:
             subj = {}
             if self.subinfo['ses-'] is None:
@@ -969,31 +1080,39 @@ class Subject(object):
                 return 0
 
 
-def snirf_to_bids(snirf: str, output: str, participants: dict = None):
+def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None):
     """Creates a BIDS-compliant folder structure (right now, just the metadata files) from a SNIRF file
 
         Args:
-            snirf: The file path to the reference SNIRF file
-            output: The file path/directory for the created BIDS metadata files
+            inputpath: The file path to the reference SNIRF file
+            outputpath: The file path/directory for the created BIDS metadata files
             participants: A dictionary with participant information
-                Example:
+                Example =
                     {participant_id: 'sub-01',
                      age: 34,
                      sex: 'M'}
-
+            scans: A dictionary with SNIRF/run information and its acquisition time
     """
 
-    subj = Subject(snirf)
-    subj.export('Folder', output)
-    fname = output + '/participants.tsv'
+    subj = Subject(inputpath)
+    subj.export('Folder', outputpath)
+    fname = outputpath + '/participants.tsv'
 
     # This will probably work only with a single SNIRF file for now
     with open(fname, 'w', newline='') as f:
         if participants is None:
-            writer = csv.DictWriter(f, fieldnames=list(subj.participant.keys()), delimiter="\t", quotechar='"')
+            writer = csv.DictWriter(f, fieldnames=list(subj.participants.keys()), delimiter="\t", quotechar='"')
             writer.writeheader()
             writer.writerow({'participant_id': 'sub-' + subj.get_subj()})
         else:
             writer = csv.DictWriter(f, fieldnames=list(participants.keys()), delimiter="\t", quotechar='"')
             writer.writeheader()
             writer.writerow(participants)
+
+    # scans.tsv output
+    # same thing as participants for scans
+    fname = outputpath + '/scans.tsv'
+    with open(fname, 'w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=list(subj.scans.keys()), delimiter="\t", quotechar='"')
+        writer.writeheader()
+        writer.writerow({'filename':  subj.scans['filename'], 'acq_time': subj.scans['acq_time']})
