@@ -1096,6 +1096,7 @@ def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None):
 
     subj = Subject(inputpath)
     subj.export('Folder', outputpath)
+    _compliancy_check(subj)
     fname = outputpath + '/participants.tsv'
 
     # This will probably work only with a single SNIRF file for now
