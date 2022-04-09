@@ -13,8 +13,9 @@
  
 
 # snirf2BIDS
-Conviniently generate BID structure from snirf files.
-Developed and maintained by [Boston University Neurophotonics Center(BUNPC)](https://github.com/BUNPC).
+Conveniently generate BIDS structure from `.snirf` files.  
+Developed by BU BME Senior Design Group 3 (2022): Christian Arthur, Jeonghoon Choi, Jiazhen Liu, Juncheng Zhang.   
+Will be maintained by [Boston University Neurophotonics Center(BUNPC)](https://github.com/BUNPC).  
 snirf2BIDS requires Python >3 and h5py >3.6.
 
 # Features
