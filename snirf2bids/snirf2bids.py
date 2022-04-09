@@ -1,9 +1,19 @@
-# To convert a given folder containing snirf files to BIDS folder directory with necessary files
+""" Module for converting snirf file into bids format
+
+Maintained by the Boston University Neurophotonics Center
+"""
+
 import numpy as np
 import json
 from pysnirf2 import Snirf
+from warnings import warn
 import csv
 
+try:
+    from snirf2bids.__version__ import __version__ as __version__
+except Exception:
+    warn('Failed to load snirf2bids library version')
+    __version__ = '0.0.0'
 
 def _getdefault(fpath, key):
     """Get the fields/keys and corresponding values/descriptions from a JSON file.
@@ -24,8 +34,7 @@ def _getdefault(fpath, key):
                  ...
                  'FiducialsDescription': 'OPTIONAL'}
     """
-
-    file = open(fpath)
+    file = open('defaults/' + fpath)
     fields = json.load(file)
 
     return fields[key]
@@ -46,9 +55,9 @@ def _pull_label(fpath, field):
         return None
     fname = fpath.split('/')[-1]
     if field not in fname and field == 'sub-':
-        raise TypeError('Subject label is REQUIRED in file name')
+        raise ValueError('Subject label is REQUIRED in file name')
     elif field not in fname and field == 'task-':
-        raise TypeError('Task label is REQUIRED in file name')
+        raise ValueError('Task label is REQUIRED in file name')
     else:
         # if it is mentioned in the filename
         info = fname.split('_')
@@ -68,7 +77,6 @@ def _makefiledir(info, classname, fpath, sidecar=None):
             info: Subject info field from the Subject class
             classname: The specific metadata class name (coordsystem, optodes, etc.)
             fpath: The file path that points to the folder where we intend to save the metadata file in
-            sidecar: Enter 'sidecar' when creating a TSV-accompanying sidecar file
 
         Returns:
             The full directory path for the specific metadata file (in string)
@@ -208,6 +216,29 @@ def _pull_scans(info, field, fpath=None):
 
             return date + 'T' + hour_minute_second + decimal + zone
 
+def _compliancy_check(bids):
+    """Checks the BIDS compliancy by checking the values of required field. Prints Warning of anything is missing.
+    Args:
+        bids: Subject class object that is trying to be exported
+    """
+    subj_object = bids.__dict__.keys()
+    for x in subj_object:
+        if x in ['channel', 'coordsystem', 'events', 'optodes', 'sidecar']:
+            class_spec = bids.__dict__[x].default_fields()[0]
+            for field in class_spec.keys():
+                if class_spec[field] == 'REQUIRED' and bids.__dict__[x]._fields[field].value is None:
+                    message = 'FATAL: The field ' + field + ' is REQUIRED in the ' + x.capitalize() + ' class'
+                    warn(message)
+        elif x in ['subinfo']:
+            pass
+        elif x in ['participants', 'scans']:
+            class_spec = _getdefault('BIDS_fNIRS_subject_folder.json',x+'.tsv')
+            for field in class_spec.keys():
+                if class_spec[field] == 'REQUIRED' and field not in bids.__dict__[x]:
+                    message = 'FATAL: The field ' + field + 'is REQUIRED in ' + x.capitalize()
+                    warn(message)
+        else:
+            raise ValueError('There is an invalid field ' + x + ' within your BIDS object')
 
 class Field:
     """Class which encapsulates fields inside a Metadata class
@@ -219,7 +250,7 @@ class Field:
     def __init__(self, val):
         """Generic constructor for a Field class
 
-            It stores a specific value declared in the class initialization in _value
+        It stores a specific value declared in the class initialization in _value
         """
         self._value = val
 
@@ -301,7 +332,7 @@ class Metadata:
     def __init__(self):
         """Generic constructor for a Metadata class
 
-        Most importantly, it constructs the default fields with empty values
+        Most importantly, it constructs the default fields with empty values within _fields in a dictionary format
         """
         default_list, default_type = self.default_fields()
         default = {'path2origin': String(None)}
@@ -892,7 +923,7 @@ class Subject(object):
         sidecar: Contains a Sidecar (_nirs.JSON) class object for a specific 'subject'/run
         events: Contains an Events class object for a specific 'subject'/run
         subinfo: Contains the 'subject'/run information related to the data stored in a 'Subject' object
-        participant: Contains the metadata related to the participants.tsv file
+        participants: Contains the metadata related to the participants.tsv file
 
     """
 
@@ -910,7 +941,7 @@ class Subject(object):
             'task-': self.pull_task(fpath),
             'run-': _pull_label(fpath, 'run-')
         }
-        self.participant = {
+        self.participants = {
             # REQUIRED BY SNIRF SPECIFICATION #
             'participant_id': 'sub-' + self.get_subj(),
 
@@ -1061,7 +1092,7 @@ class Subject(object):
                 return 0
 
 
-def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None, scans: dict = None):
+def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None):
     """Creates a BIDS-compliant folder structure (right now, just the metadata files) from a SNIRF file
 
         Args:
@@ -1077,12 +1108,13 @@ def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None, sc
 
     subj = Subject(inputpath)
     subj.export('Folder', outputpath)
+    _compliancy_check(subj)
     fname = outputpath + '/participants.tsv'
 
     # This will probably work only with a single SNIRF file for now
     with open(fname, 'w', newline='') as f:
         if participants is None:
-            writer = csv.DictWriter(f, fieldnames=list(subj.participant.keys()), delimiter="\t", quotechar='"')
+            writer = csv.DictWriter(f, fieldnames=list(subj.participants.keys()), delimiter="\t", quotechar='"')
             writer.writeheader()
             writer.writerow({'participant_id': 'sub-' + subj.get_subj()})
         else:
@@ -1090,14 +1122,10 @@ def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None, sc
             writer.writeheader()
             writer.writerow(participants)
 
+    # scans.tsv output
     # same thing as participants for scans
     fname = outputpath + '/scans.tsv'
     with open(fname, 'w', newline='') as f:
-        if scans is None:
-            writer = csv.DictWriter(f, fieldnames=list(subj.scans.keys()), delimiter="\t", quotechar='"')
-            writer.writeheader()
-            writer.writerow({'filename': 'nirs/' + subj.scans['filename']})
-        else:
-            writer = csv.DictWriter(f, fieldnames=list(scans.keys()), delimiter="\t", quotechar='"')
-            writer.writeheader()
-            writer.writerow(scans)
+        writer = csv.DictWriter(f, fieldnames=list(subj.scans.keys()), delimiter="\t", quotechar='"')
+        writer.writeheader()
+        writer.writerow({'filename':  subj.scans['filename'], 'acq_time': subj.scans['acq_time']})
