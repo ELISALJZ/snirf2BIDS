@@ -11,9 +11,10 @@ import csv
 
 try:
     from snirf2bids.__version__ import __version__ as __version__
-except Exception:
+except ImportError:
     warn('Failed to load snirf2bids library version')
     __version__ = '0.0.0'
+
 
 def _getdefault(fpath, key):
     """Get the fields/keys and corresponding values/descriptions from a JSON file.
@@ -45,10 +46,13 @@ def _pull_label(fpath, field):
 
         Args:
             fpath: The filepath to the SNIRF file of reference
-            field: The specific participant information field inquired (subject/session/run/task)
+            field: The specific participant information field inquired (sub-/ses-/run-/task-)
 
         Returns:
             The label for the specified field or None if the specific field cannot be found in the filename
+
+        Raises:
+            ValueError: If field is sub- or task- and is not clarified in the file name
     """
 
     if fpath is None:
@@ -150,7 +154,8 @@ def _pull_participant(field, fpath=None):
             fpath: The file path that points to the folder where we intend to save the metadata file in
 
         Returns:
-            The value for the specific field/column specified in string
+            The value for the specific field/column specified in string or None if it does not exist in the SNIRF file
+            or if a SNIRF file is not given
     """
 
     if fpath is not None:
@@ -183,7 +188,8 @@ def _pull_scans(info, field, fpath=None):
             fpath: file path of snirf file to extract scans.tsv from. OPTIONAL
 
         Returns:
-            the string of the requested field parameter extracted from the snirf in fpath
+            The string of the requested field parameter extracted from the snirf in fpath or None if no file path is
+            clarified
     """
     if fpath is None:
         return None
@@ -216,29 +222,36 @@ def _pull_scans(info, field, fpath=None):
 
             return date + 'T' + hour_minute_second + decimal + zone
 
+
 def _compliancy_check(bids):
-    """Checks the BIDS compliancy by checking the values of required field. Prints Warning of anything is missing.
-    Args:
-        bids: Subject class object that is trying to be exported
+    """Checks the BIDS compliancy by checking the values of required field. Prints warning if anything is missing.
+
+        Args:
+            bids: Subject class object that is trying to be exported
+
+        Raises:
+            ValueError: If there is an invalid field found within a specific BIDS/Subject object
     """
+
     subj_object = bids.__dict__.keys()
     for x in subj_object:
         if x in ['channel', 'coordsystem', 'events', 'optodes', 'sidecar']:
             class_spec = bids.__dict__[x].default_fields()[0]
             for field in class_spec.keys():
-                if class_spec[field] == 'REQUIRED' and bids.__dict__[x]._fields[field].value is None:
+                if class_spec[field] == 'REQUIRED' and bids.__dict__[x].__getattr__(field) is None:
                     message = 'FATAL: The field ' + field + ' is REQUIRED in the ' + x.capitalize() + ' class'
                     warn(message)
         elif x in ['subinfo']:
             pass
         elif x in ['participants', 'scans']:
-            class_spec = _getdefault('BIDS_fNIRS_subject_folder.json',x+'.tsv')
+            class_spec = _getdefault('BIDS_fNIRS_subject_folder.json', x + '.tsv')
             for field in class_spec.keys():
                 if class_spec[field] == 'REQUIRED' and field not in bids.__dict__[x]:
                     message = 'FATAL: The field ' + field + 'is REQUIRED in ' + x.capitalize()
                     warn(message)
         else:
             raise ValueError('There is an invalid field ' + x + ' within your BIDS object')
+
 
 class Field:
     """Class which encapsulates fields inside a Metadata class
@@ -283,12 +296,25 @@ class String(Field):
 
     @staticmethod
     def validate(val):
-        """Datatype Validation function for String class"""
+        """Datatype Validation function for String class
+
+        Args:
+            val: Value stored in the class object
+
+        Returns:
+            True if the value is a string or None and False otherwise
+        """
         if type(val) is str or val is None:
             return True
+        else:
+            return False
 
     def get_type(self):
-        """Datatype getter for the String class"""
+        """Datatype getter for the String class
+
+        Returns:
+            The datatype of the value stored in the class object
+        """
         return self.type
 
 
@@ -310,12 +336,25 @@ class Number(Field):
 
     @staticmethod
     def validate(val):
-        """Datatype Validation function for Number class"""
+        """Datatype Validation function for Number class
+        Args:
+            val: Value stored in the class object
+
+        Returns:
+            True if the value is a string or None and False otherwise
+        """
+
         if type(val) is not str or val is None:
             return True
+        else:
+            return False
 
     def get_type(self):
-        """Datatype getter for the Number class"""
+        """Datatype getter for the Number class
+
+        Returns:
+            The datatype of the value stored in the class object
+        """
         return self.type
 
 
@@ -757,6 +796,10 @@ class Channels(TSV):
 
             Args:
                 fpath: The file path to the reference SNIRF file
+
+            Raises:
+                TypeError: If the dataTypeLabel is found to be invalid based on the current SNIRF specification (not a
+                string)
         """
         self._source_snirf = fpath
 
@@ -1103,7 +1146,6 @@ def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None):
                     {participant_id: 'sub-01',
                      age: 34,
                      sex: 'M'}
-            scans: A dictionary with SNIRF/run information and its acquisition time
     """
 
     subj = Subject(inputpath)
@@ -1128,4 +1170,4 @@ def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None):
     with open(fname, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=list(subj.scans.keys()), delimiter="\t", quotechar='"')
         writer.writeheader()
-        writer.writerow({'filename':  subj.scans['filename'], 'acq_time': subj.scans['acq_time']})
+        writer.writerow({'filename': subj.scans['filename'], 'acq_time': subj.scans['acq_time']})
