@@ -20,26 +20,50 @@ snirf2BIDS requires Python >3 and h5py >3.6.
 
 # Features
 
-## Create BIDS Compliant Structures
-`Export(self, outputFormat: str = 'Folder', fpath: str = None)` creates the BIDS compliant metadata files based on information stored in the `Subject` class object. It has `outputFormat` as Folder or Text.
-Folder: Assemble output (metadata file) to a specific file directory specified by the user.
-Text: Assmble output (metadata file) as a string in JSON-like format.
+## Create BIDS-compliant Structures
+`def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None)` creates a BIDS structure from a SNIRF file.   
+Inputpath: The file path to the reference SNIRF file   
+Outputpath: The file path/directory for the created BIDS metadata files   
+Participants: A dictionary with participant information   
 ```python
-        def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None):
-    """Creates a BIDS-compliant folder structure (right now, just the metadata files) from a SNIRF file
-        Args:
-            inputpath: The file path to the reference SNIRF file
-            outputpath: The file path/directory for the created BIDS metadata files
-            participants: A dictionary with participant information
-                Example =
-                    {participant_id: 'sub-01',
-                     age: 34,
-                     sex: 'M'}
-    
-
-    subj = Subject(inputpath)
-    subj.export('Folder', outputpath)
+      def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None):
+      
+        subj = Subject(inputpath)
+        subj.export('Folder', outputpath)
+        _compliancy_check(subj)
+        fname = outputpath + '/participants.tsv'
  ```
+ ## Create BIDS-compliant Metadata Files
+ `def export(self, outputFormat: str = 'Folder', fpath: str = None)` creats BIDS-compliant metadata files based on information stored in `subject` class.
+ 
+OutputFormat: The target destination and indirectly, the output format of the metadata file. The default value is `Folder`, which outputs the metadata file to a specific file directory specified by the user.The other option is `Text`, which outputs the files and data as a string (JSON-like format)   
+fpath: The file path that points to the folder where we intend to save the metadata files in.
+
+```python
+        def export(self, outputFormat: str = 'Folder', fpath: str = None):
+
+        if outputFormat == 'Folder':
+            self.coordsystem.save_to_json(self.subinfo, fpath)
+            self.optodes.save_to_tsv(self.subinfo, fpath)
+            self.optodes.export_sidecar(self.subinfo, fpath)
+            self.channel.save_to_tsv(self.subinfo, fpath)
+            self.channel.export_sidecar(self.subinfo, fpath)
+            self.sidecar.save_to_json(self.subinfo, fpath)
+            self.events.save_to_tsv(self.subinfo, fpath)
+            self.events.export_sidecar(self.subinfo, fpath)
+            return 0
+        else:
+            subj = {}
+            if self.subinfo['ses-'] is None:
+                subj = {'name': 'sub-' + self.get_subj(), 'filenames': self.pull_fnames(), 'sessions': self.get_ses()}
+
+            out = json.dumps(subj)
+            if fpath is None:
+                return out
+            else: 
+                open(fpath + '/snirf.json', 'w').write(out)
+                return 0
+```                
 
 # Code Generation
 
