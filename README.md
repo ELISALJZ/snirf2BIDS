@@ -25,27 +25,20 @@ snirf2BIDS requires Python >3 and h5py >3.6.
 Folder: Assemble output (metadata file) to a specific file directory specified by the user.
 Text: Assmble output (metadata file) as a string in JSON-like format.
 ```python
-        if outputFormat == 'Folder':
-            self.coordsystem.save_to_json(self.subinfo, fpath)
-            self.optodes.save_to_tsv(self.subinfo, fpath)
-            self.optodes.export_sidecar(self.subinfo, fpath)
-            self.channel.save_to_tsv(self.subinfo, fpath)
-            self.channel.export_sidecar(self.subinfo, fpath)
-            self.sidecar.save_to_json(self.subinfo, fpath)
-            self.events.save_to_tsv(self.subinfo, fpath)
-            self.events.export_sidecar(self.subinfo, fpath)
-            return 0
-        else:
-            subj = {}
-            if self.subinfo['ses-'] is None:
-                subj = {'name': 'sub-' + self.get_subj(), 'filenames': self.pull_fnames(), 'sessions': self.get_ses()}
+        def snirf_to_bids(inputpath: str, outputpath: str, participants: dict = None):
+    """Creates a BIDS-compliant folder structure (right now, just the metadata files) from a SNIRF file
+        Args:
+            inputpath: The file path to the reference SNIRF file
+            outputpath: The file path/directory for the created BIDS metadata files
+            participants: A dictionary with participant information
+                Example =
+                    {participant_id: 'sub-01',
+                     age: 34,
+                     sex: 'M'}
+    
 
-            out = json.dumps(subj)
-            if fpath is None:
-                return out
-            else: 
-                open(fpath + '/snirf.json', 'w').write(out)
-                return 0
+    subj = Subject(inputpath)
+    subj.export('Folder', outputpath)
  ```
 
 # Code Generation
